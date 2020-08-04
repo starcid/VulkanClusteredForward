@@ -166,15 +166,16 @@ public:
 	void UpdateComputeDescriptorSet();
 
 	bool IsClusteShading() { return isClusteShading; }
-	void SetClusteShading(bool _isClusteShading) { isClusteShading = _isClusteShading; }
+	void SetClusteShading(bool _isClusteShading) { isClusteShadingState = _isClusteShading; }
 
 	bool IsISPC() { return isIspc; }
-	void SetISPC(bool _isIspc) { isIspc = _isIspc; }
+	void SetISPC(bool _isIspc) { isIspcState = _isIspc; }
 
 	bool IsCpuClusteCull() { return isCpuClusteCull; }
-	void SetCpuClusteCull(bool _isCpuClusteCull) { isCpuClusteCull = _isCpuClusteCull; }
+	void SetCpuClusteCull(bool _isCpuClusteCull) { isCpuClusteCullState = _isCpuClusteCull; }
 
 	double GetCpuCullTime() { return cpuCullTime; }
+	double GetGpuCullTime() { return (double)gpuCullTime / 1000000.0; }
 
 private:
 	std::array<VkVertexInputBindingDescription, 1> GetBindingDescription();
@@ -306,6 +307,7 @@ private:
 	VkFence comp_wait_fence;
 	VkShaderModule comp_cluste_shader_module;
 	VkShaderModule cluste_cull_shader_module;
+	VkQueryPool query_pool[2*3];
 
 	/// tile aabb
 	VkBuffer tile_aabbs_buffer;
@@ -350,11 +352,14 @@ private:
 	VkDescriptorBufferInfo index_count_buffer_info;
 
 	bool isClusteShading;
+	bool isClusteShadingState;
 	bool isIspc;
+	bool isIspcState;
 	bool isCpuClusteCull;
+	bool isCpuClusteCullState;
 
 	double cpuCullTime;
+	uint64_t gpuCullTime;
 };
-
 
 #endif // !__VULKAN_RENDERER_H__

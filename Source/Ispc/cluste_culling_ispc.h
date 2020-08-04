@@ -120,7 +120,7 @@ struct LightGrid {
 #if defined(__cplusplus) && (! defined(__ISPC_NO_EXTERN_C) || !__ISPC_NO_EXTERN_C )
 extern "C" {
 #endif // __cplusplus
-    extern void cluste_culling_ispc(int32_t xSize, int32_t ySize, int32_t zSize, struct ScreenToViewISPC &screenToView, struct PointLightDataISPC * pointLights, int32_t lightCount, struct LightGrid * lightGrids, uint32_t * globalLightIndexList);
+    extern void cluste_culling_ispc(const int32_t xSize, const int32_t ySize, int32_t zSize, struct ScreenToViewISPC &screenToView, struct PointLightDataISPC * pointLights, const int32_t lightCount, struct LightGrid * lightGrids, uint32_t * globalLightIndexList);
 #if defined(__cplusplus) && (! defined(__ISPC_NO_EXTERN_C) || !__ISPC_NO_EXTERN_C )
 } /* end extern C */
 #endif // __cplusplus

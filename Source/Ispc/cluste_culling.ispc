@@ -184,9 +184,10 @@ inline vec4 apply(uniform mat4& m, vec4& v)
     return ret;
 }
 
-inline uniform float apply_parallel( uniform mat4& m, uniform vec3& v )
+inline uniform vec4 apply_parallel( uniform mat4& m, uniform vec4& v )
 {
-	return m[0] * v[0] + m[1] * v[1] + m[2] * v[2] + m[3];
+    uniform float<4>* uniform vm = (uniform float<4> *uniform)&m;
+	return vm[0] * v[0] + vm[1] * v[1] + vm[2] * v[2] + vm[3];
 }
 
 inline vec3 min(vec3& v1, vec3& v2)
@@ -224,7 +225,7 @@ inline vec3 lineIntersectionToZPlane(const uniform vec3& A, const uniform vec3& 
 
 inline uniform vec4 clipToView(uniform vec4& clip, uniform ScreenToViewISPC& screenToView){
     //View space transform
-    uniform vec4 view = apply(screenToView.inverseProjection, clip);
+    uniform vec4 view = apply_parallel(screenToView.inverseProjection, clip);
 
     //Perspective projection
     view = view / view.w;
@@ -263,7 +264,7 @@ inline float sqDistPointAABB(uniform vec3& point, vec3& minPoint, vec3& maxPoint
 
 inline bool testSphereAABB(uniform ScreenToViewISPC& screenToView, uniform vec3& pos, uniform float& radius, vec3 minPoint, vec3 maxPoint)
 {
-    uniform vec3 center  = toVec3(apply(screenToView.viewMatrix, toVec4(pos, 1.0f)));
+    uniform vec3 center  = toVec3(apply_parallel(screenToView.viewMatrix, toVec4(pos, 1.0f)));
 	//uniform float center_ = apply_parallel(screenToView.viewMatrix, pos);
 	//vec3 center;
 	//center.x = broadcast(center_, 0);

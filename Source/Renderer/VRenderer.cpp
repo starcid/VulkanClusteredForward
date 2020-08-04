@@ -43,6 +43,9 @@ VulkanRenderer::VulkanRenderer(GLFWwindow* win)
 	isClusteShading = false;
 	isIspc = false;
 	isCpuClusteCull = false;
+	isClusteShadingState = false;
+	isIspcState = false;
+	isCpuClusteCullState = false;
 	last_command_buffer_idx = UINT_MAX;
 	CreateInstance();
 	CreateSurface();
@@ -164,6 +167,9 @@ void VulkanRenderer::CleanUp()
 		UnmapBufferMemory(light_uniform_buffer_memorys[i]);
 		CleanBuffer(light_uniform_buffers[i], light_uniform_buffer_memorys[i]);
 	}
+
+	for( int i = 0; i < 6; i++ )
+		vkDestroyQueryPool(device, query_pool[i], nullptr);
 
 	UnmapBufferMemory(transform_uniform_buffer_memory);
 	CleanBuffer(transform_uniform_buffer, transform_uniform_buffer_memory);
@@ -1066,6 +1072,18 @@ void VulkanRenderer::CreateCompPipeline()
 
 void VulkanRenderer::InitializeClusteRendering()
 {
+	VkQueryPoolCreateInfo createInfo = {};
+	createInfo.sType = VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO;
+	createInfo.pNext = nullptr;
+	createInfo.queryType = VK_QUERY_TYPE_TIMESTAMP;
+	createInfo.queryCount = 2;
+
+	for (int i = 0; i < 6; i++)
+	{
+		VkResult res = vkCreateQueryPool(device, &createInfo, nullptr, &query_pool[i]);
+		assert(res == VK_SUCCESS);
+	}
+
 	CreateCompPipeline();
 
 	/// create desc set pool for cluste shadering
@@ -1269,17 +1287,25 @@ void VulkanRenderer::UpdateComputeDescriptorSet()
 	int command_buffer_idx = active_command_buffer_idx * 2 + 0;
 	vkBeginCommandBuffer(comp_command_buffers[command_buffer_idx], &beginInfo);
 
+	vkCmdResetQueryPool(comp_command_buffers[command_buffer_idx], query_pool[command_buffer_idx], 0, 2);
+	vkCmdWriteTimestamp(comp_command_buffers[command_buffer_idx], VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, query_pool[command_buffer_idx], 0);
+
 	vkCmdBindPipeline(comp_command_buffers[command_buffer_idx], VK_PIPELINE_BIND_POINT_COMPUTE, comp_pipelines[0]);
 
 	vkCmdBindDescriptorSets(comp_command_buffers[command_buffer_idx], VK_PIPELINE_BIND_POINT_COMPUTE, comp_pipeline_layout, 0, 1, &comp_desc_set[active_command_buffer_idx], 0, nullptr);
 
 	vkCmdDispatch(comp_command_buffers[command_buffer_idx], group_num.x, group_num.y, group_num.z);
 
+	vkCmdWriteTimestamp(comp_command_buffers[command_buffer_idx], VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, query_pool[command_buffer_idx], 1);
+
 	vkEndCommandBuffer(comp_command_buffers[command_buffer_idx]);
 
 	/// comp 2
 	command_buffer_idx = active_command_buffer_idx * 2 + 1;
 	vkBeginCommandBuffer(comp_command_buffers[command_buffer_idx], &beginInfo);
+
+	vkCmdResetQueryPool(comp_command_buffers[command_buffer_idx], query_pool[command_buffer_idx], 0, 2);
+	vkCmdWriteTimestamp(comp_command_buffers[command_buffer_idx], VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, query_pool[command_buffer_idx], 0);
 
 	vkCmdBindPipeline(comp_command_buffers[command_buffer_idx], VK_PIPELINE_BIND_POINT_COMPUTE, comp_pipelines[1]);
 
@@ -1322,6 +1348,8 @@ void VulkanRenderer::UpdateComputeDescriptorSet()
 		0, nullptr,
 		2, buffer_barriers,
 		0, nullptr);
+
+	vkCmdWriteTimestamp(comp_command_buffers[command_buffer_idx], VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, query_pool[command_buffer_idx], 1);
 
 	vkEndCommandBuffer(comp_command_buffers[command_buffer_idx]);	
 	
@@ -1980,6 +2008,11 @@ void VulkanRenderer::ClearLightBufferData()
 
 void VulkanRenderer::RenderBegin()
 {
+	/// state
+	isClusteShading = isClusteShadingState;
+	isCpuClusteCull = isCpuClusteCullState;
+	isIspc = isIspcState;
+
 	/// set camera
 	assert(camera != NULL);
 	camera->UpdateViewProject();
@@ -2120,6 +2153,16 @@ void VulkanRenderer::Flush()
 		if (vkQueuePresentKHR(graphics_queue, &presentInfo) != VK_SUCCESS)
 		{
 			throw std::runtime_error("failed to present frame buffer!");
+		}
+
+		if (isClusteShading && !isCpuClusteCull)
+		{
+			uint64_t timestamps[2];
+			gpuCullTime = 0;
+			VkResult result = vkGetQueryPoolResults(device, query_pool[active_command_buffer_idx * 2], 0, 2, sizeof(timestamps), timestamps, sizeof(timestamps[0]), VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WAIT_BIT);
+			gpuCullTime += (timestamps[1] - timestamps[0]);
+			result = vkGetQueryPoolResults(device, query_pool[active_command_buffer_idx * 2 + 1], 0, 2, sizeof(timestamps), timestamps, sizeof(timestamps[0]), VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WAIT_BIT);
+			gpuCullTime += (timestamps[1] - timestamps[0]);
 		}
 	}
 
