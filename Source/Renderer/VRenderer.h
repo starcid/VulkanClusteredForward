@@ -175,7 +175,7 @@ public:
 	void SetCpuClusteCull(bool _isCpuClusteCull) { isCpuClusteCullState = _isCpuClusteCull; }
 
 	double GetCpuCullTime() { return cpuCullTime; }
-	double GetGpuCullTime() { return (double)gpuCullTime / 1000000.0; }
+	double GetGpuCullTime() { return (double)gpuCullTime / timestampFrequency; }
 
 private:
 	std::array<VkVertexInputBindingDescription, 1> GetBindingDescription();
@@ -360,6 +360,9 @@ private:
 
 	double cpuCullTime;
 	uint64_t gpuCullTime;
+	bool compSupportTimeStamp;
+	float timestampPeriod;
+	double timestampFrequency;
 };
 
 #endif // !__VULKAN_RENDERER_H__
