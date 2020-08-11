@@ -46,6 +46,7 @@ VulkanRenderer::VulkanRenderer(GLFWwindow* win)
 	isClusteShadingState = false;
 	isIspcState = false;
 	isCpuClusteCullState = false;
+	compSupportTimeStamp = false;
 	last_command_buffer_idx = UINT_MAX;
 	CreateInstance();
 	CreateSurface();
@@ -287,7 +288,13 @@ bool VulkanRenderer::IsDeviceSuitable(VkPhysicalDevice device)
 		swapChainAdequate = !swapChainSupport.formats.empty() && !swapChainSupport.presentModes.empty();
 	}
 
-	return (deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU || deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU) && indices.isComplete() && extensionsSupported && swapChainAdequate;
+	bool ret = (deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU || deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU) && indices.isComplete() && extensionsSupported && swapChainAdequate;
+	if (ret)
+	{
+		timestampPeriod = deviceProperties.limits.timestampPeriod; /// nm/timestamp
+		timestampFrequency = 1000000.0 / (timestampPeriod); /// timestamp/ms
+	}
+	return ret;
 }
 
 bool VulkanRenderer::CheckDeviceExtensionSupport(VkPhysicalDevice device)
@@ -328,6 +335,7 @@ QueueFamilyIndices VulkanRenderer::FindQueueFamilies(VkPhysicalDevice device)
 			if (queueFamily.queueFlags & VK_QUEUE_COMPUTE_BIT)
 			{
 				indices.computeFamily = i;	/// here we use one queue to deal with compute, no async compute here
+				compSupportTimeStamp = (queueFamily.timestampValidBits != 0);
 			}
 		}
 
@@ -1288,7 +1296,8 @@ void VulkanRenderer::UpdateComputeDescriptorSet()
 	vkBeginCommandBuffer(comp_command_buffers[command_buffer_idx], &beginInfo);
 
 	vkCmdResetQueryPool(comp_command_buffers[command_buffer_idx], query_pool[command_buffer_idx], 0, 2);
-	vkCmdWriteTimestamp(comp_command_buffers[command_buffer_idx], VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, query_pool[command_buffer_idx], 0);
+	if(compSupportTimeStamp)
+		vkCmdWriteTimestamp(comp_command_buffers[command_buffer_idx], VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, query_pool[command_buffer_idx], 0);
 
 	vkCmdBindPipeline(comp_command_buffers[command_buffer_idx], VK_PIPELINE_BIND_POINT_COMPUTE, comp_pipelines[0]);
 
@@ -1296,7 +1305,8 @@ void VulkanRenderer::UpdateComputeDescriptorSet()
 
 	vkCmdDispatch(comp_command_buffers[command_buffer_idx], group_num.x, group_num.y, group_num.z);
 
-	vkCmdWriteTimestamp(comp_command_buffers[command_buffer_idx], VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, query_pool[command_buffer_idx], 1);
+	if(compSupportTimeStamp)
+		vkCmdWriteTimestamp(comp_command_buffers[command_buffer_idx], VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, query_pool[command_buffer_idx], 1);
 
 	vkEndCommandBuffer(comp_command_buffers[command_buffer_idx]);
 
@@ -1305,7 +1315,8 @@ void VulkanRenderer::UpdateComputeDescriptorSet()
 	vkBeginCommandBuffer(comp_command_buffers[command_buffer_idx], &beginInfo);
 
 	vkCmdResetQueryPool(comp_command_buffers[command_buffer_idx], query_pool[command_buffer_idx], 0, 2);
-	vkCmdWriteTimestamp(comp_command_buffers[command_buffer_idx], VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, query_pool[command_buffer_idx], 0);
+	if(compSupportTimeStamp)
+		vkCmdWriteTimestamp(comp_command_buffers[command_buffer_idx], VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, query_pool[command_buffer_idx], 0);
 
 	vkCmdBindPipeline(comp_command_buffers[command_buffer_idx], VK_PIPELINE_BIND_POINT_COMPUTE, comp_pipelines[1]);
 
@@ -1349,7 +1360,8 @@ void VulkanRenderer::UpdateComputeDescriptorSet()
 		2, buffer_barriers,
 		0, nullptr);
 
-	vkCmdWriteTimestamp(comp_command_buffers[command_buffer_idx], VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, query_pool[command_buffer_idx], 1);
+	if(compSupportTimeStamp)
+		vkCmdWriteTimestamp(comp_command_buffers[command_buffer_idx], VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, query_pool[command_buffer_idx], 1);
 
 	vkEndCommandBuffer(comp_command_buffers[command_buffer_idx]);	
 	
