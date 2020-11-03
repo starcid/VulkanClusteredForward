@@ -61,6 +61,14 @@ struct TransformData {
 	float bias;
 };
 
+/// meshlet for mesh shading
+struct Meshlet {
+	glm::uint vertices[64];
+	glm::uint indices[378]; // up to 126 triangles
+	glm::uint vertex_count;
+	glm::uint index_count;
+};
+
 /// material flag for shader
 struct MaterialData {
 	int has_albedo_map;
@@ -256,11 +264,14 @@ private:
 	std::vector<VkImageView> swap_chain_image_views;
 	VkShaderModule vert_shader_module;
 	VkShaderModule frag_shader_module;
+	VkShaderModule task_shader_module;
+	VkShaderModule mesh_shader_module;
 	VkRenderPass render_pass;
 	VkDescriptorSetLayout desc_layout;
 	VkDescriptorPool desc_pool;
 	VkPipelineLayout pipeline_layout;
 	VkPipeline graphics_pipeline;
+	VkPipeline mesh_pipeline;
 	std::vector<VkFramebuffer> swap_chain_framebuffers;
 	VkCommandPool command_pool;
 	std::vector<VkCommandBuffer> command_buffers;
@@ -357,6 +368,9 @@ private:
 	bool isIspcState;
 	bool isCpuClusteCull;
 	bool isCpuClusteCullState;
+
+	bool isMeshShader;
+	bool isTaskShaderInit;
 
 	double cpuCullTime;
 	uint64_t gpuCullTime;

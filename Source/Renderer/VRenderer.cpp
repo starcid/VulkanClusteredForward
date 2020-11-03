@@ -43,6 +43,8 @@ VulkanRenderer::VulkanRenderer(GLFWwindow* win)
 	isClusteShading = false;
 	isIspc = false;
 	isCpuClusteCull = false;
+	isTaskShaderInit = false;
+	isMeshShader = false;
 	isClusteShadingState = false;
 	isIspcState = false;
 	isCpuClusteCullState = false;
@@ -193,6 +195,7 @@ void VulkanRenderer::CleanUp()
 		vkDestroyFramebuffer(device, framebuffer, nullptr);
 	}
 
+	vkDestroyPipeline(device, mesh_pipeline, nullptr);
 	vkDestroyPipeline(device, graphics_pipeline, nullptr);
 	vkDestroyPipelineLayout(device, pipeline_layout, nullptr);
 	vkDestroyRenderPass(device, render_pass, nullptr);
@@ -775,19 +778,54 @@ void VulkanRenderer::CreateGraphicsPipeline()
 {
 	std::string vsCode;
 	std::string psCode;
+	std::string taskCode;
+	std::string meshCode;
 	vsCode = "Data/shader/tinyobj_vert.spv";
 	psCode = "Data/shader/tinyobj_frag.spv";
+	taskCode = "Data/shader/tinyobj_task.spv";
+	meshCode = "Data/shader/tinyobj_mesh.spv";
 	auto vertShaderCode = Utils::readFile(vsCode);
 	auto fragShaderCode = Utils::readFile(psCode);
+	auto meshShaderCode = Utils::readFile(meshCode);
+	std::vector<char> taskShaderCode;
+	try{
+		taskShaderCode = Utils::readFile(taskCode);
+	}
+	catch (std::runtime_error& e)
+	{
+		isTaskShaderInit = false;
+		std::cout << e.what() << " : " << taskCode << std::endl;
+	}
 
 	vert_shader_module = createShaderModule(vertShaderCode);
 	frag_shader_module = createShaderModule(fragShaderCode);
-
+	mesh_shader_module = createShaderModule(meshShaderCode);
+	if (isTaskShaderInit)
+	{
+		task_shader_module = createShaderModule(taskShaderCode);
+	}
+	else
+	{
+		task_shader_module = NULL;
+	}
+	
 	VkPipelineShaderStageCreateInfo vertShaderStageInfo = {};
 	vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 	vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
 	vertShaderStageInfo.module = vert_shader_module;
 	vertShaderStageInfo.pName = "main";
+
+	VkPipelineShaderStageCreateInfo meshShaderStageInfo = {};
+	meshShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+	meshShaderStageInfo.stage = VK_SHADER_STAGE_MESH_BIT_NV;
+	meshShaderStageInfo.module = mesh_shader_module;
+	meshShaderStageInfo.pName = "main";
+
+	VkPipelineShaderStageCreateInfo taskShaderStageInfo = {};
+	taskShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+	taskShaderStageInfo.stage = VK_SHADER_STAGE_TASK_BIT_NV;
+	taskShaderStageInfo.module = task_shader_module;
+	taskShaderStageInfo.pName = "main";
 
 	VkPipelineShaderStageCreateInfo fragShaderStageInfo = {};
 	fragShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
@@ -795,7 +833,11 @@ void VulkanRenderer::CreateGraphicsPipeline()
 	fragShaderStageInfo.module = frag_shader_module;
 	fragShaderStageInfo.pName = "main";
 
-	VkPipelineShaderStageCreateInfo shaderStages[] = { vertShaderStageInfo, fragShaderStageInfo };
+	VkPipelineShaderStageCreateInfo shaderStages[3];
+	int shaderStagesNum;
+	shaderStages[0] = vertShaderStageInfo;
+	shaderStages[1] = fragShaderStageInfo;
+	shaderStagesNum = 2;
 
 	/// fixed pipeline setting manually
 	/// vertex buffer
@@ -967,7 +1009,7 @@ void VulkanRenderer::CreateGraphicsPipeline()
 
 	VkGraphicsPipelineCreateInfo pipelineInfo = {};
 	pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-	pipelineInfo.stageCount = 2;
+	pipelineInfo.stageCount = shaderStagesNum;
 	pipelineInfo.pStages = shaderStages;
 	pipelineInfo.pVertexInputState = &vertexInputInfo;
 	pipelineInfo.pInputAssemblyState = &inputAssembly;
@@ -985,6 +1027,25 @@ void VulkanRenderer::CreateGraphicsPipeline()
 
 	if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &graphics_pipeline) != VK_SUCCESS) {
 		throw std::runtime_error("failed to create graphics pipeline!");
+	}
+
+	// also create a mesh shading pipeline (no task shader for now)
+	if (isTaskShaderInit)
+	{
+		shaderStages[0] = taskShaderStageInfo;
+		shaderStages[1] = meshShaderStageInfo;
+		shaderStages[2] = fragShaderStageInfo;
+		shaderStagesNum = 3;
+	}
+	else
+	{
+		shaderStages[0] = meshShaderStageInfo;
+		shaderStages[1] = fragShaderStageInfo;
+		shaderStagesNum = 2;
+	}
+
+	if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &mesh_pipeline) != VK_SUCCESS) {
+		throw std::runtime_error("failed to create mesh shading pipeline!");
 	}
 }
 
@@ -2132,7 +2193,10 @@ void VulkanRenderer::RenderBegin()
 
 	vkCmdBeginRenderPass(command_buffers[active_command_buffer_idx], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
-	vkCmdBindPipeline(command_buffers[active_command_buffer_idx], VK_PIPELINE_BIND_POINT_GRAPHICS, graphics_pipeline);
+	if( !isMeshShader )
+		vkCmdBindPipeline(command_buffers[active_command_buffer_idx], VK_PIPELINE_BIND_POINT_GRAPHICS, graphics_pipeline);
+	else
+		vkCmdBindPipeline(command_buffers[active_command_buffer_idx], VK_PIPELINE_BIND_POINT_GRAPHICS, mesh_pipeline);
 }
 
 void VulkanRenderer::RenderEnd()
