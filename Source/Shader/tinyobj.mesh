@@ -1,90 +1,69 @@
 #version 450
-
 #extension GL_NV_mesh_shader : require
 
 layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
 layout(triangles, max_vertices = 64, max_primitives = 126) out;
 
+#define MAX_LIGHT_NUM 16
+layout (std140, binding = 0) uniform TransformData {
+    mat4 mvp;
+    mat4 model;
+    mat4 view;
+    mat4 proj;
+    mat4 proj_view;
+    vec3 cam_pos;
+    bool isClusteShading;
+    uvec4 tileSizes;
+    float zNear;
+    float zFar;
+    float scale;
+    float bias;
+} transform;
 
-//-------------------------------------
-// transform_ub: Uniform buffer for transformations
-//
-layout (std140, binding = 0) uniform uniforms_t
-{ 
-  mat4 ViewProjectionMatrix;
-  mat4 ModelMatrix;
-} transform_ub;
-
-
-
-
-//-------------------------------------
-// vb: storage buffer for vertices.
-//
-struct s_vertex
+layout(std140, binding = 1) uniform MaterialData
 {
-	vec4 position;
-	vec4 color;
+    int has_albedo_map;
+    int has_normal_map;
+} material;
+
+layout(std140, binding = 2) uniform PointLightData
+{
+    vec3 pos;
+    float radius;
+    vec3 color;
+    uint enabled;
+    float ambient_intensity;
+    float diffuse_intensity;
+    float specular_intensity;
+    float attenuation_constant;
+    float attenuation_linear;
+    float attenuation_exp;
+    vec2 padding;
+} pointLight[MAX_LIGHT_NUM];
+
+struct MeshLet{
+    uint vertices[64];
+    uint indices[378]; // up to 126 triangles
+    uint vertex_count;
+    uint index_count;
 };
 
-layout (std430, binding = 1) buffer _vertices
-{
-	s_vertex vertices[];
-} vb;
-
-
-
-
-
-//-------------------------------------
-// mbuf: storage buffer for meshlets.
-//
-struct s_meshlet
-{
-	uint vertices[64];
-	uint indices[378]; // up to 126 triangles
-	uint vertex_count;
-	uint index_count;
+layout (std140, binding = 3) buffer meshLetBuf{
+    MeshLet meshLets[];
 };
 
-layout (std430, binding = 2) buffer _meshlets
-{
-	s_meshlet meshlets[];
-} mbuf;
+struct Vertex{
+    vec4 position;
+    vec3 color;
+    vec3 texcoord;
+    vec3 normal;
+    vec3 tangent;
+    vec3 bitangent;
+};
 
-
-
-
-
-// Mesh shader output block.
-//
-layout (location = 0) out PerVertexData
-{
-  vec4 color;
-} v_out[];   // [max_vertices]
-
-
-
-
-// Color table for drawing each meshlet with a different color.
-//
-#define MAX_COLORS 10
-vec3 meshletcolors[MAX_COLORS] = {
-  vec3(1,0,0), 
-  vec3(0,1,0),
-  vec3(0,0,1),
-  vec3(1,1,0),
-  vec3(1,0,1),
-  vec3(0,1,1),
-  vec3(1,0.5,0),
-  vec3(0.5,1,0),
-  vec3(0,0.5,1),
-  vec3(1,1,1)
-  };
-
-
-
-
+layout (std430, binding = 4) buffer verticeBuf{
+    Vertex vertices[];
+};
 
 void main()
 {
@@ -108,9 +87,7 @@ void main()
 
     v_out[i].color = vb.vertices[vi].color * vec4(meshletcolors[mi%MAX_COLORS], 1.0);
 	}
-
-
-
+  
   uint index_count = mbuf.meshlets[mi].index_count;
   gl_PrimitiveCountNV = uint(index_count) / 3;
 
