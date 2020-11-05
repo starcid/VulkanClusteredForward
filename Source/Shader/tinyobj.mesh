@@ -52,18 +52,36 @@ layout (std140, binding = 3) buffer meshLetBuf{
     MeshLet meshLets[];
 };
 
-struct Vertex{
-    vec4 position;
-    vec3 color;
-    vec3 texcoord;
-    vec3 normal;
-    vec3 tangent;
-    vec3 bitangent;
+layout (std430, binding = 4) buffer posBuf{
+    vec4 positions[];
 };
 
-layout (std430, binding = 4) buffer verticeBuf{
-    Vertex vertices[];
+layout (std430, binding = 5) buffer colorBuf{
+    vec3 colors[];
 };
+
+layout (std430, binding = 6) buffer texCoordBuf{
+    vec3 texCoords[];
+};
+
+layout (std430, binding = 7) buffer normalBuf{
+    vec3 normals[];
+};
+
+layout (std430, binding = 8) buffer tangentBuf{
+    vec3 tangents[];
+};
+
+layout (std430, binding = 9) buffer bitangentBuf{
+    vec3 bitangents[];
+};
+
+layout(location = 0) out vec3 fragColor;
+layout(location = 1) out vec3 fragTexCoord;
+layout(location = 2) out vec3 fragPos;
+layout(location = 3) out vec3 tanViewPos;
+layout(location = 4) out vec3 tanFragPos;
+layout(location = 5) out vec3 tanLightPos[16];
 
 void main()
 {

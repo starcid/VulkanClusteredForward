@@ -142,6 +142,11 @@ void TOModel::Draw()
 	}
 }
 
+void TOModel::GenerateMeshlets()
+{
+	
+}
+
 bool TOModel::LoadFromPath(std::string path)
 {
 	std::string err;
