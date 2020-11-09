@@ -40,6 +40,18 @@ TOModel::~TOModel()
 
 	VulkanRenderer* vRenderer = (VulkanRenderer*)Application::Inst()->GetRenderer();
 
+	for (int i = 0; i < meshlet_buffers.size(); i++)
+	{
+		vRenderer->CleanBuffer(meshlet_buffers[i], meshlet_buffers_memorys[i]);
+	}
+	meshlet_buffers.clear();
+	meshlet_buffers_memorys.clear();
+	for (int i = 0; i < vertex_storage_buffers.size(); i++)
+	{
+		vRenderer->CleanBuffer(vertex_storage_buffers[i], vertex_storage_buffer_memorys[i]);
+	}
+	vertex_storage_buffers.clear();
+	vertex_storage_buffer_memorys.clear();
 	for (int i = 0; i < index_buffers.size(); i++)
 	{
 		vRenderer->CleanBuffer(index_buffers[i], index_buffer_memorys[i]);
@@ -134,17 +146,47 @@ void TOModel::Draw()
 				vRenderer->SetNormalTexture(mat->GetNormalTexture());
 				vRenderer->UpdateMaterial(mat);
 			}
-			VkBuffer vertexBuffers[] = { vertex_buffers[i] };
-			VkDeviceSize offsets[] = { 0 };
-			vkCmdBindVertexBuffers(cb, 0, 1, vertexBuffers, offsets);
-			vkCmdDraw(cb, indices_counts[i], 1, 0, 0);
+			if (!vRenderer->IsMeshShading())
+			{
+				VkBuffer vertexBuffers[] = { vertex_buffers[i] };
+				VkDeviceSize offsets[] = { 0 };
+				vkCmdBindVertexBuffers(cb, 0, 1, vertexBuffers, offsets);
+				vkCmdDraw(cb, indices_counts[i], 1, 0, 0);
+			}
+			else
+			{
+					
+			}
 		}
 	}
 }
 
-void TOModel::GenerateMeshlets()
+void TOModel::GenerateMeshlets(void* vtxData, int vtxNum)
 {
-	
+	Vertex* vertices = (Vertex*)vtxData;
+	int triangleNum = vtxNum / 3;
+	int max_primitive = MAX_MESH_SHADER_VERTICES / 3;	// no indice buffer, so this is low to 21(less than 126... next optimization)
+	int max_vtx = max_primitive * 3;
+	int meshLetNum = triangleNum / max_primitive + (triangleNum % max_primitive) != 0 ? 1 : 0;
+	Meshlet* mestLets = new Meshlet[meshLetNum];
+	for (int i = 0; i < vtxNum; i++)
+	{
+		int meshLetIdx = i / max_vtx;
+		int verticesIdx = i % max_vtx;
+		mestLets[meshLetIdx].vertices[verticesIdx] = i;
+		mestLets[meshLetIdx].vertex_count++;
+	}
+
+	VulkanRenderer* vRenderer = (VulkanRenderer*)Application::Inst()->GetRenderer();
+	VkBuffer meshlet_buffer;
+	VkDeviceMemory meshlet_buffer_memory;
+	void* mestLetDatas;
+	vRenderer->CreateLocalStorageBuffer(&mestLetDatas, sizeof(Meshlet) * meshLetNum, meshlet_buffer, meshlet_buffer_memory);
+	memcpy(mestLetDatas, mestLets, sizeof(Meshlet) * meshLetNum);	// set to gpu
+	vRenderer->UnmapBufferMemory(meshlet_buffer_memory);	// unmap ok
+	meshlet_buffers.push_back(meshlet_buffer);
+	meshlet_buffers_memorys.push_back(meshlet_buffer_memory);
+	delete[] mestLets;
 }
 
 bool TOModel::LoadFromPath(std::string path)
@@ -177,6 +219,8 @@ bool TOModel::LoadFromPath(std::string path)
 	VulkanRenderer* vRenderer = (VulkanRenderer*)Application::Inst()->GetRenderer();
 	VkBuffer vertex_buffer;
 	VkDeviceMemory vertex_buffer_memory;
+	VkBuffer vertex_storage_buffer;
+	VkDeviceMemory vertex_storage_buffer_memory;
 
 	/// multi vertex buffers
 	bool hasWeight = attrib.vertex_weights.size() > 0;
@@ -273,6 +317,14 @@ bool TOModel::LoadFromPath(std::string path)
 			vertex_buffers.push_back(vertex_buffer);
 			vertex_buffer_memorys.push_back(vertex_buffer_memory);
 			indices_counts.push_back(static_cast<uint32_t>(vtxNum));
+			/// meshlet
+			void* verticesDatas;
+			vRenderer->CreateLocalStorageBuffer(&verticesDatas, sizeof(Vertex)*vtxNum, vertex_storage_buffer, vertex_storage_buffer_memory);
+			memcpy(verticesDatas, vertices, sizeof(Vertex) * vtxNum);	// set to gpu
+			vRenderer->UnmapBufferMemory(vertex_storage_buffer_memory); // unmap ok
+			vertex_storage_buffers.push_back(vertex_storage_buffer);
+			vertex_storage_buffer_memorys.push_back(vertex_storage_buffer_memory);
+			GenerateMeshlets((void*)vertices, vtxNum);
 			mat_ids.push_back(subMeshMatIds[k]);
 			delete[] vertices;
 

@@ -19,7 +19,7 @@ public:
 	bool LoadTestData();	/// test usage
 
 private:
-	void GenerateMeshlets();
+	void GenerateMeshlets(void* vtxData, int vtxNum);
 
 private:
 	tinyobj::attrib_t attrib;
@@ -36,6 +36,12 @@ private:
 	std::vector<VkDeviceMemory> index_buffer_memorys;
 	std::vector<uint32_t> indices_counts;
 	std::vector<int32_t> mat_ids;
+
+	/// meshlet data
+	std::vector<VkBuffer> meshlet_buffers;
+	std::vector<VkDeviceMemory> meshlet_buffers_memorys;
+	std::vector<VkBuffer> vertex_storage_buffers;
+	std::vector<VkDeviceMemory> vertex_storage_buffer_memorys;
 };
 
 #endif // !__TO_MODEL_H__

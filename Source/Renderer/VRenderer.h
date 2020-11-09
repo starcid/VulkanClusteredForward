@@ -18,6 +18,8 @@
 #define CLUSTE_Y 9
 #define CLUSTE_Z 24
 #define CLUSTE_NUM (CLUSTE_X * CLUSTE_Y * CLUSTE_Z)
+#define MAX_MESH_SHADER_PRIMITIVE 126
+#define MAX_MESH_SHADER_VERTICES 64
 
 struct SwapChainSupportDetails {
 	VkSurfaceCapabilitiesKHR capabilities;
@@ -45,6 +47,12 @@ struct Vertex {
 	glm::vec3 bitangent;
 };
 
+/// meshlet for mesh shading
+struct Meshlet {
+	glm::uint vertices[MAX_MESH_SHADER_VERTICES];
+	glm::uint vertex_count;
+};
+
 /// transform data for shader
 struct TransformData {
 	glm::mat4x4 mvp;
@@ -59,14 +67,6 @@ struct TransformData {
 	float zFar;
 	float scale;
 	float bias;
-};
-
-/// meshlet for mesh shading
-struct Meshlet {
-	glm::uint vertices[64];
-	glm::uint indices[378]; // up to 126 triangles
-	glm::uint vertex_count;
-	glm::uint index_count;
 };
 
 /// material flag for shader
@@ -172,6 +172,9 @@ public:
 	void ClearLight();
 
 	void UpdateComputeDescriptorSet();
+
+	bool IsMeshShading() { return isMeshShader; }
+	void SetMeshShading(bool _isMeshShading) { isMeshShader = _isMeshShading; }
 
 	bool IsClusteShading() { return isClusteShading; }
 	void SetClusteShading(bool _isClusteShading) { isClusteShadingState = _isClusteShading; }

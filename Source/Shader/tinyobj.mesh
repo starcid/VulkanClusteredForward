@@ -48,69 +48,59 @@ struct MeshLet{
     uint index_count;
 };
 
-layout (std140, binding = 3) buffer meshLetBuf{
+layout (std140, binding = 3) readonly buffer meshLetBuf{
     MeshLet meshLets[];
 };
 
-layout (std430, binding = 4) buffer posBuf{
-    vec4 positions[];
+struct Vertex {
+	vec4 pos;
+	vec3 color;
+	vec3 texcoord;
+	vec3 normal;
+	gvec3 tangent;
+	vec3 bitangent;
 };
 
-layout (std430, binding = 5) buffer colorBuf{
-    vec3 colors[];
+layout (std430, binding = 4) readonly buffer vtxBuf{
+    vec4 vertices[];
 };
 
-layout (std430, binding = 6) buffer texCoordBuf{
-    vec3 texCoords[];
-};
-
-layout (std430, binding = 7) buffer normalBuf{
-    vec3 normals[];
-};
-
-layout (std430, binding = 8) buffer tangentBuf{
-    vec3 tangents[];
-};
-
-layout (std430, binding = 9) buffer bitangentBuf{
-    vec3 bitangents[];
-};
-
-layout(location = 0) out vec3 fragColor;
-layout(location = 1) out vec3 fragTexCoord;
-layout(location = 2) out vec3 fragPos;
-layout(location = 3) out vec3 tanViewPos;
-layout(location = 4) out vec3 tanFragPos;
-layout(location = 5) out vec3 tanLightPos[16];
+layout(location = 0) out vec3 fragColor[];
+layout(location = 1) out vec3 fragTexCoord[];
+layout(location = 2) out vec3 fragPos[];
+layout(location = 3) out vec3 tanViewPos[];
+layout(location = 4) out vec3 tanFragPos[];
+layout(location = 5) out vec3 tanLightPos[][16];
 
 void main()
 {
-  uint mi = gl_WorkGroupID.x;
-  uint thread_id = gl_LocalInvocationID.x;
+    uint mi = gl_WorkGroupID.x;
+    uint thread_id = gl_LocalInvocationID.x;
+    uint vertex_count = meshlets[mi].vertex_count;
 
+    mat3 normalMatrix = transpose(inverse(mat3(transform.model))); /// maybe have scale
+    for (uint i = 0; i < vertex_count; ++i)
+    {
+        uint vi = meshlets[mi].vertices[i];
+        gl_MeshVerticesNV[i].gl_Position = transform.mvp * vertices[vi].position
+        fragColor[i] = vertices[vi].color;
+        fragTexCoord[i] = vertices[vi].texcoord;
+        fragPos[i] = vec3(transform.model * vertices[vi].position);
 
-  uint vertex_count = mbuf.meshlets[mi].vertex_count;
-  for (uint i = 0; i < vertex_count; ++i)
-  {
-		uint vi = mbuf.meshlets[mi].vertices[i];
-
-		vec4 Pw = transform_ub.ModelMatrix * vb.vertices[vi].position;
-		vec4 P = transform_ub.ViewProjectionMatrix * Pw;
-
-    // GL->VK conventions...
-    P.y = -P.y;
-    P.z = (P.z + P.w) / 2.0;
-
-		gl_MeshVerticesNV[i].gl_Position = P;
-
-    v_out[i].color = vb.vertices[vi].color * vec4(meshletcolors[mi%MAX_COLORS], 1.0);
-	}
-  
-  uint index_count = mbuf.meshlets[mi].index_count;
-  gl_PrimitiveCountNV = uint(index_count) / 3;
-
-  for (uint i = 0; i < index_count; ++i)
+        vec3 T = normalize(vec3(normalMatrix * vertices[vi].tangent));
+        vec3 N = normalize(vec3(normalMatrix * vertices[vi].normal));
+        T = normalize(T - dot(T, N) * N);
+        vec3 B = cross(N, T);
+        mat3 TBN = mat3(T, B, N);
+        TBN = transpose(TBN);
+        for(int j = 0; j < MAX_LIGHT_NUM; j++)
+            tanLightPos[i][j] = TBN * pointLight[j].pos;
+        tanViewPos[i]  = TBN * transform.cam_pos;
+        tanFragPos[i]  = TBN * fragPos[i];
+    }
+    gl_PrimitiveCountNV = uint(vertex_count) / 3;
+    for (uint i = 0; i < vertex_count; ++i)
 	{
-		gl_PrimitiveIndicesNV[i] = uint(mbuf.meshlets[mi].indices[i]);
+		gl_PrimitiveIndicesNV[i] = uint(mbuf.meshlets[mi].vertices[i]);
 	}
 }
