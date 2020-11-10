@@ -144,6 +144,11 @@ void TOModel::Draw()
 				Material* mat = material_insts[mat_ids[i]];
 				vRenderer->SetTexture(mat->GetDiffuseTexture());
 				vRenderer->SetNormalTexture(mat->GetNormalTexture());
+				if (vRenderer->IsMeshShading())
+				{
+					/// bind vtx/meshlet buffer here
+					
+				}
 				vRenderer->UpdateMaterial(mat);
 			}
 			if (!vRenderer->IsMeshShading())
@@ -155,7 +160,16 @@ void TOModel::Draw()
 			}
 			else
 			{
-					
+				uint32_t count = meshlet_nums[i];
+				const uint32_t max_count = vRenderer->GetMaxDrawMeshTaskCount();
+				uint32_t start = 0;
+				while (count > max_count)
+				{
+					vkCmdDrawMeshTasksNV(cb, max_count, start);
+					start += max_count;
+					count -= max_count;
+				}
+				vkCmdDrawMeshTasksNV(cb, count, start);
 			}
 		}
 	}
@@ -184,6 +198,7 @@ void TOModel::GenerateMeshlets(void* vtxData, int vtxNum)
 	vRenderer->CreateLocalStorageBuffer(&mestLetDatas, sizeof(Meshlet) * meshLetNum, meshlet_buffer, meshlet_buffer_memory);
 	memcpy(mestLetDatas, mestLets, sizeof(Meshlet) * meshLetNum);	// set to gpu
 	vRenderer->UnmapBufferMemory(meshlet_buffer_memory);	// unmap ok
+	meshlet_nums.push_back(meshLetNum);
 	meshlet_buffers.push_back(meshlet_buffer);
 	meshlet_buffers_memorys.push_back(meshlet_buffer_memory);
 	delete[] mestLets;

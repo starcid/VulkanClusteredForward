@@ -297,6 +297,29 @@ bool VulkanRenderer::IsDeviceSuitable(VkPhysicalDevice device)
 		timestampPeriod = deviceProperties.limits.timestampPeriod; /// nm/timestamp
 		timestampFrequency = 1000000.0 / (timestampPeriod); /// timestamp/ms
 	}
+
+	/// check mesh shading
+	meshshading_device_property = NULL;
+	if (is_mesh_shading_supported)
+	{
+		VkPhysicalDeviceProperties2 physical_device_property2;
+		if(deviceProperties.apiVersion >= VK_MAKE_VERSION(1, 1, 0))
+			vkGetPhysicalDeviceProperties2(physical_device, &physical_device_property2);
+		else
+			vkGetPhysicalDeviceProperties2KHR(physical_device, &physical_device_property2);
+
+		void* pNext = physical_device_property2.pNext;
+		while (pNext != NULL)
+		{
+			if (*((VkStructureType*)pNext) == VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MESH_SHADER_PROPERTIES_NV)
+			{
+				meshshading_device_property = (VkPhysicalDeviceMeshShaderPropertiesNV*)pNext;
+				break;
+			}
+			pNext = (void*)((unsigned int)pNext + 4);
+		}
+	}
+
 	return ret;
 }
 
@@ -312,6 +335,14 @@ bool VulkanRenderer::CheckDeviceExtensionSupport(VkPhysicalDevice device)
 
 	for (const auto& extension : availableExtensions) {
 		requiredExtensions.erase(extension.extensionName);
+	}
+
+	is_mesh_shading_supported = false;
+	for (const auto& extension : availableExtensions) {
+		if (strcmp(extension.extensionName, "VK_NV_mesh_shader") == 0){
+			is_mesh_shading_supported = true;
+			break;
+		}
 	}
 
 	return requiredExtensions.empty();
@@ -1256,6 +1287,13 @@ void VulkanRenderer::ReleaseCompDescriptorSets()
 	CleanBuffer(gpu_light_grids_buffer, gpu_light_grids_buffer_memory);
 	CleanBuffer(index_count_buffer, index_count_buffer_memory);
 	FreeCompDescriptorSets(comp_desc_set);
+}
+
+uint32_t VulkanRenderer::GetMaxDrawMeshTaskCount()
+{
+	if (is_mesh_shading_supported && meshshading_device_property != NULL)
+		return meshshading_device_property->maxDrawMeshTasksCount;
+	return 0;
 }
 
 void VulkanRenderer::UpdateComputeDescriptorSet()

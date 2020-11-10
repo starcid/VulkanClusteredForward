@@ -188,6 +188,8 @@ public:
 	double GetCpuCullTime() { return cpuCullTime; }
 	double GetGpuCullTime() { return (double)gpuCullTime / timestampFrequency; }
 
+	uint32_t GetMaxDrawMeshTaskCount();
+
 private:
 	std::array<VkVertexInputBindingDescription, 1> GetBindingDescription();
 	std::array<VkVertexInputAttributeDescription, 6> GetAttributeDescriptions();
@@ -257,6 +259,8 @@ private:
 private:
 	VkInstance instance;
 	VkPhysicalDevice physical_device;
+	VkPhysicalDeviceMeshShaderPropertiesNV *meshshading_device_property;
+	bool is_mesh_shading_supported;
 	VkDevice device;
 	VkQueue graphics_queue;
 	VkSurfaceKHR surface;

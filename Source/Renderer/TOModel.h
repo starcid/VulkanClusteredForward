@@ -38,6 +38,7 @@ private:
 	std::vector<int32_t> mat_ids;
 
 	/// meshlet data
+	std::vector<uint32_t> meshlet_nums;
 	std::vector<VkBuffer> meshlet_buffers;
 	std::vector<VkDeviceMemory> meshlet_buffers_memorys;
 	std::vector<VkBuffer> vertex_storage_buffers;
