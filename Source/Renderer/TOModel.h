@@ -41,8 +41,10 @@ private:
 	std::vector<uint32_t> meshlet_nums;
 	std::vector<VkBuffer> meshlet_buffers;
 	std::vector<VkDeviceMemory> meshlet_buffers_memorys;
+	std::vector<VkDescriptorBufferInfo> meshlet_buffer_infos;
 	std::vector<VkBuffer> vertex_storage_buffers;
 	std::vector<VkDeviceMemory> vertex_storage_buffer_memorys;
+	std::vector<VkDescriptorBufferInfo> vertex_storage_buffer_infos;
 };
 
 #endif // !__TO_MODEL_H__

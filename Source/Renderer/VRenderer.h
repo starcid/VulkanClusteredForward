@@ -159,7 +159,7 @@ public:
 	void SetNormalTexture(Texture* tex);
 
 	void AllocateDescriptorSets(VkDescriptorSet* descSets);
-	void UpdateMaterial(Material* mat);
+	void UpdateMaterial(Material* mat, VkDescriptorBufferInfo* meshletBufInfo = NULL, VkDescriptorBufferInfo* vertexBufInfo = NULL);
 	void FreeDescriptorSets(VkDescriptorSet* descSets);
 
 	void CopyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
@@ -189,6 +189,7 @@ public:
 	double GetGpuCullTime() { return (double)gpuCullTime / timestampFrequency; }
 
 	uint32_t GetMaxDrawMeshTaskCount();
+	bool IsMeshShadingSupported() { return is_mesh_shading_supported; }
 
 private:
 	std::array<VkVertexInputBindingDescription, 1> GetBindingDescription();

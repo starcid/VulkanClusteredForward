@@ -144,12 +144,7 @@ void TOModel::Draw()
 				Material* mat = material_insts[mat_ids[i]];
 				vRenderer->SetTexture(mat->GetDiffuseTexture());
 				vRenderer->SetNormalTexture(mat->GetNormalTexture());
-				if (vRenderer->IsMeshShading())
-				{
-					/// bind vtx/meshlet buffer here
-					
-				}
-				vRenderer->UpdateMaterial(mat);
+				vRenderer->UpdateMaterial(mat, &meshlet_buffer_infos[i], &vertex_storage_buffer_infos[i]);
 			}
 			if (!vRenderer->IsMeshShading())
 			{
@@ -165,11 +160,11 @@ void TOModel::Draw()
 				uint32_t start = 0;
 				while (count > max_count)
 				{
-					vkCmdDrawMeshTasksNV(cb, max_count, start);
+					vkCmdDrawMeshTasks(cb, max_count, start);
 					start += max_count;
 					count -= max_count;
 				}
-				vkCmdDrawMeshTasksNV(cb, count, start);
+				vkCmdDrawMeshTasks(cb, count, start);
 			}
 		}
 	}
@@ -177,7 +172,24 @@ void TOModel::Draw()
 
 void TOModel::GenerateMeshlets(void* vtxData, int vtxNum)
 {
+	VulkanRenderer* vRenderer = (VulkanRenderer*)Application::Inst()->GetRenderer();
 	Vertex* vertices = (Vertex*)vtxData;
+
+	void* verticesDatas;
+	VkBuffer vertex_storage_buffer;
+	VkDeviceMemory vertex_storage_buffer_memory;
+	vRenderer->CreateLocalStorageBuffer(&verticesDatas, sizeof(Vertex)*vtxNum, vertex_storage_buffer, vertex_storage_buffer_memory);
+	memcpy(verticesDatas, vertices, sizeof(Vertex) * vtxNum);	// set to gpu
+	vRenderer->UnmapBufferMemory(vertex_storage_buffer_memory); // unmap ok
+	vertex_storage_buffers.push_back(vertex_storage_buffer);
+	vertex_storage_buffer_memorys.push_back(vertex_storage_buffer_memory);
+
+	VkDescriptorBufferInfo vertex_storage_buffer_info;
+	vertex_storage_buffer_info.buffer = vertex_storage_buffer;
+	vertex_storage_buffer_info.offset = 0;
+	vertex_storage_buffer_info.range = sizeof(Vertex)*vtxNum;
+	vertex_storage_buffer_infos.push_back(vertex_storage_buffer_info);
+
 	int triangleNum = vtxNum / 3;
 	int max_primitive = MAX_MESH_SHADER_VERTICES / 3;	// no indice buffer, so this is low to 21(less than 126... next optimization)
 	int max_vtx = max_primitive * 3;
@@ -191,7 +203,6 @@ void TOModel::GenerateMeshlets(void* vtxData, int vtxNum)
 		mestLets[meshLetIdx].vertex_count++;
 	}
 
-	VulkanRenderer* vRenderer = (VulkanRenderer*)Application::Inst()->GetRenderer();
 	VkBuffer meshlet_buffer;
 	VkDeviceMemory meshlet_buffer_memory;
 	void* mestLetDatas;
@@ -201,6 +212,13 @@ void TOModel::GenerateMeshlets(void* vtxData, int vtxNum)
 	meshlet_nums.push_back(meshLetNum);
 	meshlet_buffers.push_back(meshlet_buffer);
 	meshlet_buffers_memorys.push_back(meshlet_buffer_memory);
+
+	VkDescriptorBufferInfo meshlet_buffer_info;
+	meshlet_buffer_info.buffer = meshlet_buffer;
+	meshlet_buffer_info.offset = 0;
+	meshlet_buffer_info.range = sizeof(Meshlet) * meshLetNum;
+	meshlet_buffer_infos.push_back(meshlet_buffer_info);
+
 	delete[] mestLets;
 }
 
@@ -234,8 +252,6 @@ bool TOModel::LoadFromPath(std::string path)
 	VulkanRenderer* vRenderer = (VulkanRenderer*)Application::Inst()->GetRenderer();
 	VkBuffer vertex_buffer;
 	VkDeviceMemory vertex_buffer_memory;
-	VkBuffer vertex_storage_buffer;
-	VkDeviceMemory vertex_storage_buffer_memory;
 
 	/// multi vertex buffers
 	bool hasWeight = attrib.vertex_weights.size() > 0;
@@ -333,13 +349,10 @@ bool TOModel::LoadFromPath(std::string path)
 			vertex_buffer_memorys.push_back(vertex_buffer_memory);
 			indices_counts.push_back(static_cast<uint32_t>(vtxNum));
 			/// meshlet
-			void* verticesDatas;
-			vRenderer->CreateLocalStorageBuffer(&verticesDatas, sizeof(Vertex)*vtxNum, vertex_storage_buffer, vertex_storage_buffer_memory);
-			memcpy(verticesDatas, vertices, sizeof(Vertex) * vtxNum);	// set to gpu
-			vRenderer->UnmapBufferMemory(vertex_storage_buffer_memory); // unmap ok
-			vertex_storage_buffers.push_back(vertex_storage_buffer);
-			vertex_storage_buffer_memorys.push_back(vertex_storage_buffer_memory);
-			GenerateMeshlets((void*)vertices, vtxNum);
+			if (vRenderer->IsMeshShadingSupported())
+			{
+				GenerateMeshlets((void*)vertices, vtxNum);
+			}
 			mat_ids.push_back(subMeshMatIds[k]);
 			delete[] vertices;
 

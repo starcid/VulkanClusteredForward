@@ -303,10 +303,7 @@ bool VulkanRenderer::IsDeviceSuitable(VkPhysicalDevice device)
 	if (is_mesh_shading_supported)
 	{
 		VkPhysicalDeviceProperties2 physical_device_property2;
-		if(deviceProperties.apiVersion >= VK_MAKE_VERSION(1, 1, 0))
-			vkGetPhysicalDeviceProperties2(physical_device, &physical_device_property2);
-		else
-			vkGetPhysicalDeviceProperties2KHR(physical_device, &physical_device_property2);
+		vkGetPhysicalDeviceProperties2(physical_device, &physical_device_property2);
 
 		void* pNext = physical_device_property2.pNext;
 		while (pNext != NULL)
@@ -972,21 +969,21 @@ void VulkanRenderer::CreateGraphicsPipeline()
 	layoutBinding.binding = 0;
 	layoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 	layoutBinding.descriptorCount = 1;
-	layoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+	layoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_MESH_BIT_NV;
 	layoutBinding.pImmutableSamplers = NULL;
 
 	VkDescriptorSetLayoutBinding layoutBinding1 = {};
 	layoutBinding1.binding = 1;
 	layoutBinding1.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 	layoutBinding1.descriptorCount = 1;
-	layoutBinding1.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+	layoutBinding1.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_MESH_BIT_NV;
 	layoutBinding1.pImmutableSamplers = NULL;
 
 	VkDescriptorSetLayoutBinding layoutBinding2 = {};
 	layoutBinding2.binding = 2;
 	layoutBinding2.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 	layoutBinding2.descriptorCount = MAX_LIGHT_NUM;
-	layoutBinding2.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+	layoutBinding2.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_MESH_BIT_NV;
 	layoutBinding2.pImmutableSamplers = NULL;
 
 	VkDescriptorSetLayoutBinding lightIndexLayoutBinding = {};
@@ -1018,13 +1015,40 @@ void VulkanRenderer::CreateGraphicsPipeline()
 	samplerLayoutBinding1.pImmutableSamplers = nullptr;
 	samplerLayoutBinding1.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
-	std::array<VkDescriptorSetLayoutBinding, 7> bindings = { layoutBinding, layoutBinding1, layoutBinding2, samplerLayoutBinding, samplerLayoutBinding1,lightIndexLayoutBinding, lightGridLayoutBinding };
-	VkDescriptorSetLayoutCreateInfo descriptorLayout = {};
-	descriptorLayout.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-	descriptorLayout.pNext = NULL;
-	descriptorLayout.bindingCount = static_cast<uint32_t>(bindings.size());
-	descriptorLayout.pBindings = bindings.data();
-	vkCreateDescriptorSetLayout(device, &descriptorLayout, NULL, &desc_layout);
+	if (is_mesh_shading_supported)
+	{
+		VkDescriptorSetLayoutBinding meshletLayoutBinding = {};
+		meshletLayoutBinding.binding = 7;
+		meshletLayoutBinding.descriptorCount = 1;
+		meshletLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+		meshletLayoutBinding.pImmutableSamplers = nullptr;
+		meshletLayoutBinding.stageFlags = VK_SHADER_STAGE_MESH_BIT_NV;
+
+		VkDescriptorSetLayoutBinding vertexLayoutBinding = {};
+		vertexLayoutBinding.binding = 8;
+		vertexLayoutBinding.descriptorCount = 1;
+		vertexLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+		vertexLayoutBinding.pImmutableSamplers = nullptr;
+		vertexLayoutBinding.stageFlags = VK_SHADER_STAGE_MESH_BIT_NV;
+	
+		std::array<VkDescriptorSetLayoutBinding, 9> bindings = { layoutBinding, layoutBinding1, layoutBinding2, samplerLayoutBinding, samplerLayoutBinding1,lightIndexLayoutBinding, lightGridLayoutBinding, meshletLayoutBinding, vertexLayoutBinding };
+		VkDescriptorSetLayoutCreateInfo descriptorLayout = {};
+		descriptorLayout.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+		descriptorLayout.pNext = NULL;
+		descriptorLayout.bindingCount = static_cast<uint32_t>(bindings.size());
+		descriptorLayout.pBindings = bindings.data();
+		vkCreateDescriptorSetLayout(device, &descriptorLayout, NULL, &desc_layout);
+	}
+	else
+	{
+		std::array<VkDescriptorSetLayoutBinding, 7> bindings = { layoutBinding, layoutBinding1, layoutBinding2, samplerLayoutBinding, samplerLayoutBinding1,lightIndexLayoutBinding, lightGridLayoutBinding };
+		VkDescriptorSetLayoutCreateInfo descriptorLayout = {};
+		descriptorLayout.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+		descriptorLayout.pNext = NULL;
+		descriptorLayout.bindingCount = static_cast<uint32_t>(bindings.size());
+		descriptorLayout.pBindings = bindings.data();
+		vkCreateDescriptorSetLayout(device, &descriptorLayout, NULL, &desc_layout);
+	}
 
 	/// pipeline layout
 	VkPipelineLayoutCreateInfo pipelineLayoutInfo = {};
@@ -1746,12 +1770,12 @@ void VulkanRenderer::CreateCommandBuffers()
 	}
 }
 
-void VulkanRenderer::UpdateMaterial(Material* mat)
+void VulkanRenderer::UpdateMaterial(Material* mat, VkDescriptorBufferInfo* meshletBufInfo, VkDescriptorBufferInfo* vertexBufInfo)
 {
 	VkDescriptorSet* descSets = mat->GetDescriptorSets();
 	if (!mat->IsDescSetUpdated())
 	{
-		std::array<VkWriteDescriptorSet, 7> descriptorWrites = {};
+		std::array<VkWriteDescriptorSet, 9> descriptorWrites = {};
 		descriptorWrites[0] = {};
 		descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 		descriptorWrites[0].pNext = NULL;
@@ -1824,7 +1848,35 @@ void VulkanRenderer::UpdateMaterial(Material* mat)
 		descriptorWrites[6].descriptorCount = 1;
 		descriptorWrites[6].pImageInfo = normal_image_info;
 
-		vkUpdateDescriptorSets(device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, NULL);
+		if (isMeshShader)
+		{
+			/// meshlets
+			descriptorWrites[7] = {};
+			descriptorWrites[7].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+			descriptorWrites[7].pNext = NULL;
+			descriptorWrites[7].dstSet = descSets[active_command_buffer_idx];
+			descriptorWrites[7].descriptorCount = 1;
+			descriptorWrites[7].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+			descriptorWrites[7].pBufferInfo = meshletBufInfo;
+			descriptorWrites[7].dstArrayElement = 0;
+			descriptorWrites[7].dstBinding = 7;
+
+			/// vertex buffer
+			descriptorWrites[8] = {};
+			descriptorWrites[8].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+			descriptorWrites[8].pNext = NULL;
+			descriptorWrites[8].dstSet = descSets[active_command_buffer_idx];
+			descriptorWrites[8].descriptorCount = 1;
+			descriptorWrites[8].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+			descriptorWrites[8].pBufferInfo = vertexBufInfo;
+			descriptorWrites[8].dstArrayElement = 0;
+			descriptorWrites[8].dstBinding = 8;
+		}
+
+		if (isMeshShader)
+			vkUpdateDescriptorSets(device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, NULL);
+		else
+			vkUpdateDescriptorSets(device, static_cast<uint32_t>(descriptorWrites.size() - 2), descriptorWrites.data(), 0, NULL);
 
 		mat->SetDescUpdated();
 	}
@@ -1926,7 +1978,7 @@ void VulkanRenderer::CreateUniformBuffers()
 
 void VulkanRenderer::CreateDescriptorSetsPool()
 {
-	std::array<VkDescriptorPoolSize, 7> typeCounts = {};
+	std::array<VkDescriptorPoolSize, 9> typeCounts = {};
 	typeCounts[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 	typeCounts[0].descriptorCount = swap_chain_images.size() * MAX_MATERIAL_NUM;
 	typeCounts[1].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -1941,6 +1993,10 @@ void VulkanRenderer::CreateDescriptorSetsPool()
 	typeCounts[5].descriptorCount = swap_chain_images.size() * MAX_MATERIAL_NUM;
 	typeCounts[6].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 	typeCounts[6].descriptorCount = swap_chain_images.size() * MAX_MATERIAL_NUM;
+	typeCounts[7].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+	typeCounts[7].descriptorCount = swap_chain_images.size() * MAX_MATERIAL_NUM;
+	typeCounts[8].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+	typeCounts[8].descriptorCount = swap_chain_images.size() * MAX_MATERIAL_NUM;
 
 	VkDescriptorPoolCreateInfo descriptorPool = {};
 	descriptorPool.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;

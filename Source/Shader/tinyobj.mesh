@@ -48,7 +48,7 @@ struct MeshLet{
     uint index_count;
 };
 
-layout (std140, binding = 3) readonly buffer meshLetBuf{
+layout (std140, binding = 7) readonly buffer meshLetBuf{
     MeshLet meshLets[];
 };
 
@@ -61,7 +61,7 @@ struct Vertex {
 	vec3 bitangent;
 };
 
-layout (std430, binding = 4) readonly buffer vtxBuf{
+layout (std430, binding = 8) readonly buffer vtxBuf{
     vec4 vertices[];
 };
 
