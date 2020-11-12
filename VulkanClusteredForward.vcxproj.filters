@@ -61,6 +61,9 @@
     <ClCompile Include="Source\Renderer\Light.cpp">
       <Filter>Source\Renderer</Filter>
     </ClCompile>
+    <ClCompile Include="Source\Renderer\extensions_vk.cpp">
+      <Filter>Source\Renderer</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ThirdParty\tinyobjloader\tiny_obj_loader.h">
@@ -130,6 +133,9 @@
       <Filter>Source\Ispc</Filter>
     </ClInclude>
     <ClInclude Include="Source\Renderer\ClusteCulling.h">
+      <Filter>Source\Renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Renderer\extensions_vk.hpp">
       <Filter>Source\Renderer</Filter>
     </ClInclude>
   </ItemGroup>

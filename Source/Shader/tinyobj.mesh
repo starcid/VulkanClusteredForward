@@ -53,16 +53,16 @@ layout (std140, binding = 7) readonly buffer meshLetBuf{
 };
 
 struct Vertex {
-	vec4 pos;
+	vec4 position;
 	vec3 color;
 	vec3 texcoord;
 	vec3 normal;
-	gvec3 tangent;
+	vec3 tangent;
 	vec3 bitangent;
 };
 
 layout (std430, binding = 8) readonly buffer vtxBuf{
-    vec4 vertices[];
+    Vertex vertices[];
 };
 
 layout(location = 0) out vec3 fragColor[];
@@ -76,13 +76,13 @@ void main()
 {
     uint mi = gl_WorkGroupID.x;
     uint thread_id = gl_LocalInvocationID.x;
-    uint vertex_count = meshlets[mi].vertex_count;
+    uint vertex_count = meshLets[mi].vertex_count;
 
     mat3 normalMatrix = transpose(inverse(mat3(transform.model))); /// maybe have scale
     for (uint i = 0; i < vertex_count; ++i)
     {
-        uint vi = meshlets[mi].vertices[i];
-        gl_MeshVerticesNV[i].gl_Position = transform.mvp * vertices[vi].position
+        uint vi = meshLets[mi].vertices[i];
+        gl_MeshVerticesNV[i].gl_Position = transform.mvp * vertices[vi].position;
         fragColor[i] = vertices[vi].color;
         fragTexCoord[i] = vertices[vi].texcoord;
         fragPos[i] = vec3(transform.model * vertices[vi].position);
@@ -101,6 +101,6 @@ void main()
     gl_PrimitiveCountNV = uint(vertex_count) / 3;
     for (uint i = 0; i < vertex_count; ++i)
 	{
-		gl_PrimitiveIndicesNV[i] = uint(mbuf.meshlets[mi].vertices[i]);
+		gl_PrimitiveIndicesNV[i] = uint(meshLets[mi].vertices[i]);
 	}
 }

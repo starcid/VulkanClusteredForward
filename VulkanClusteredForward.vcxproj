@@ -108,14 +108,14 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>C:\VulkanSDK\1.2.141.0\Include;C:\Work\thirdparty\glfw-3.3.2.bin.WIN64\include;C:\Work\thirdparty\glm;ThirdParty/tinyobjloader;Source;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\VulkanSDK\1.2.154.1\Include;C:\Work\thirdparty\glfw-3.3.2.bin.WIN64\include;C:\Work\thirdparty\glm;ThirdParty/tinyobjloader;Source;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Console</SubSystem>
-      <AdditionalLibraryDirectories>C:\VulkanSDK\1.2.141.0\Lib;C:\Work\thirdparty\glfw-3.3.2.bin.WIN64\lib-vc2017;ThirdParty\tinyobjloader\Debug;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>vulkan-1.lib;glfw3.lib;tinyobjloader.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>C:\VulkanSDK\1.2.154.1\Lib;C:\Work\thirdparty\glfw-3.3.2.bin.WIN64\lib-vc2017;ThirdParty\tinyobjloader\Debug;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>vulkan-1.lib;shaderc.lib;OSDependent.lib;MachineIndependent.lib;VkLayer_utils.lib;SPIRV.lib;shaderc_util.lib;shaderc_shared.lib;OGLCompiler.lib;SPIRV-Tools.lib;glslang.lib;HLSL.lib;glfw3.lib;tinyobjloader.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <IgnoreAllDefaultLibraries>false</IgnoreAllDefaultLibraries>
       <IgnoreSpecificDefaultLibraries>MSVCRT.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
       <UACExecutionLevel>AsInvoker</UACExecutionLevel>
@@ -164,7 +164,7 @@
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
-      <AdditionalIncludeDirectories>C:\VulkanSDK\1.2.141.0\Include;C:\Work\thirdparty\glfw-3.3.2.bin.WIN64\include;C:\Work\thirdparty\glm;ThirdParty/tinyobjloader;Source;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\VulkanSDK\1.2.154.1\Include;C:\Work\thirdparty\glfw-3.3.2.bin.WIN64\include;C:\Work\thirdparty\glm;ThirdParty/tinyobjloader;Source;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <ExceptionHandling>Sync</ExceptionHandling>
       <BufferSecurityCheck>true</BufferSecurityCheck>
@@ -177,8 +177,8 @@
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>false</GenerateDebugInformation>
       <SubSystem>Console</SubSystem>
-      <AdditionalLibraryDirectories>C:\VulkanSDK\1.2.141.0\Lib;C:\Work\thirdparty\glfw-3.3.2.bin.WIN64\lib-vc2017;ThirdParty\tinyobjloader\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>vulkan-1.lib;glfw3.lib;tinyobjloader.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>C:\VulkanSDK\1.2.154.1\Lib;C:\Work\thirdparty\glfw-3.3.2.bin.WIN64\lib-vc2017;ThirdParty\tinyobjloader\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>vulkan-1.lib;shaderc.lib;glfw3.lib;tinyobjloader.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <IgnoreAllDefaultLibraries>false</IgnoreAllDefaultLibraries>
       <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
       <UACExecutionLevel>AsInvoker</UACExecutionLevel>
@@ -199,6 +199,7 @@
     <ClCompile Include="Source\Common\Utils.cpp" />
     <ClCompile Include="Source\Main.cpp" />
     <ClCompile Include="Source\Renderer\Camera.cpp" />
+    <ClCompile Include="Source\Renderer\extensions_vk.cpp" />
     <ClCompile Include="Source\Renderer\Light.cpp" />
     <ClCompile Include="Source\Renderer\Material.cpp" />
     <ClCompile Include="Source\Renderer\Texture.cpp" />
@@ -219,6 +220,7 @@
     <ClInclude Include="Source\Ispc\cluste_culling_ispc_sse4.h" />
     <ClInclude Include="Source\Renderer\Camera.h" />
     <ClInclude Include="Source\Renderer\ClusteCulling.h" />
+    <ClInclude Include="Source\Renderer\extensions_vk.hpp" />
     <ClInclude Include="Source\Renderer\Light.h" />
     <ClInclude Include="Source\Renderer\Material.h" />
     <ClInclude Include="Source\Renderer\Model.h" />

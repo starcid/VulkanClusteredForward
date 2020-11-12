@@ -1,8 +1,5 @@
-#include <algorithm>
-#include <windows.h>
-
+#define VK_USE_PLATFORM_WIN32_KHR
 #include <vulkan/vulkan.h>
-#include <vulkan/vulkan_win32.h>
 
 #include "Application/Application.h"
 #include "Common/Utils.h"
@@ -273,6 +270,22 @@ void VulkanRenderer::PickPhysicalDevice()
 	if (physical_device == VK_NULL_HANDLE) {
 		throw std::runtime_error("failed to find a suitable GPU!");
 	}
+
+	/// check mesh shading
+	meshshading_device_property = NULL;
+	if (is_mesh_shading_supported)
+	{
+		VkPhysicalDeviceMeshShaderPropertiesNV vkMeshShaderProperty{};
+		vkMeshShaderProperty.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MESH_SHADER_PROPERTIES_NV;
+		vkMeshShaderProperty.pNext = NULL;
+
+		VkPhysicalDeviceProperties2 physical_device_property2;
+		physical_device_property2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
+		physical_device_property2.pNext = &vkMeshShaderProperty;
+		vkGetPhysicalDeviceProperties2(physical_device, &physical_device_property2);
+
+		meshshading_device_property = (VkPhysicalDeviceMeshShaderPropertiesNV*)physical_device_property2.pNext;
+	}
 }
 
 bool VulkanRenderer::IsDeviceSuitable(VkPhysicalDevice device)
@@ -296,25 +309,6 @@ bool VulkanRenderer::IsDeviceSuitable(VkPhysicalDevice device)
 	{
 		timestampPeriod = deviceProperties.limits.timestampPeriod; /// nm/timestamp
 		timestampFrequency = 1000000.0 / (timestampPeriod); /// timestamp/ms
-	}
-
-	/// check mesh shading
-	meshshading_device_property = NULL;
-	if (is_mesh_shading_supported)
-	{
-		VkPhysicalDeviceProperties2 physical_device_property2;
-		vkGetPhysicalDeviceProperties2(physical_device, &physical_device_property2);
-
-		void* pNext = physical_device_property2.pNext;
-		while (pNext != NULL)
-		{
-			if (*((VkStructureType*)pNext) == VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MESH_SHADER_PROPERTIES_NV)
-			{
-				meshshading_device_property = (VkPhysicalDeviceMeshShaderPropertiesNV*)pNext;
-				break;
-			}
-			pNext = (void*)((unsigned int)pNext + 4);
-		}
 	}
 
 	return ret;

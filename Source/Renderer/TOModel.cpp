@@ -1,10 +1,5 @@
-#define GLFW_INCLUDE_VULKAN
-#define GLFW_EXPOSE_NATIVE_WIN32
-#include <GLFW/glfw3.h>
-#include <GLFW/glfw3native.h>
-
+#define VK_USE_PLATFORM_WIN32_KHR
 #include <vulkan/vulkan.h>
-#include <vulkan/vulkan_win32.h>
 
 #include "Renderer/VRenderer.h"
 #include "Camera.h"
@@ -160,11 +155,11 @@ void TOModel::Draw()
 				uint32_t start = 0;
 				while (count > max_count)
 				{
-					vkCmdDrawMeshTasks(cb, max_count, start);
+					vkCmdDrawMeshTasksNV(cb, max_count, start);
 					start += max_count;
 					count -= max_count;
 				}
-				vkCmdDrawMeshTasks(cb, count, start);
+				vkCmdDrawMeshTasksNV(cb, count, start);
 			}
 		}
 	}
