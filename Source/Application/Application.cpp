@@ -168,9 +168,9 @@ void Application::showFPS(GLFWwindow *pWindow)
 		char title[256];
 		title[255] = '\0';
 		if(cullTime != 0)
-			snprintf(title, 255, "[FPS: %3.2f] [ClusteShading: %s] [%s][Cull:%.4f(ms)]", fps, ((VulkanRenderer*)renderer)->IsClusteShading() ? "ON" : "OFF", mode, cullTime);
+			snprintf(title, 255, "[FPS: %3.2f] [ClusteShading: %s] [MeshShading: %s] [%s][Cull:%.4f(ms)]", fps, ((VulkanRenderer*)renderer)->IsClusteShading() ? "ON" : "OFF", ((VulkanRenderer*)renderer)->IsMeshShading() ? "ON" : "OFF", mode, cullTime);
 		else
-			snprintf(title, 255, "[FPS: %3.2f] [ClusteShading: %s] [%s]", fps, ((VulkanRenderer*)renderer)->IsClusteShading() ? "ON" : "OFF", mode);
+			snprintf(title, 255, "[FPS: %3.2f] [ClusteShading: %s] [MeshShading: %s] [%s]", fps, ((VulkanRenderer*)renderer)->IsClusteShading() ? "ON" : "OFF", ((VulkanRenderer*)renderer)->IsMeshShading() ? "ON" : "OFF", mode);
 		glfwSetWindowTitle(pWindow, title);
 		nb_frames = 0;
 		last_fps_time = currentTime;

@@ -9,6 +9,8 @@
 #include "Light.h"
 #include "VRenderer.h"
 
+#include "extensions_vk.hpp"
+
 #include "ClusteCulling.h"
 
 /// prevent multi-define
@@ -31,7 +33,8 @@ const std::vector<const char*> validationLayers = {
 };
 
 const std::vector<const char*> deviceExtensions = {
-	VK_KHR_SWAPCHAIN_EXTENSION_NAME
+	VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+	VK_NV_MESH_SHADER_EXTENSION_NAME
 };
 
 VulkanRenderer::VulkanRenderer(GLFWwindow* win)
@@ -42,6 +45,7 @@ VulkanRenderer::VulkanRenderer(GLFWwindow* win)
 	isCpuClusteCull = false;
 	isTaskShaderInit = false;
 	isMeshShader = false;
+	isMeshShaderState = false;
 	isClusteShadingState = false;
 	isIspcState = false;
 	isCpuClusteCullState = false;
@@ -464,6 +468,8 @@ void VulkanRenderer::CreateLogicDevice()
 
 	vkGetDeviceQueue(device, indices.graphicsFamily.value(), 0, &graphics_queue);
 	vkGetDeviceQueue(device, indices.computeFamily.value(), 0, &comp_queue);
+
+	load_VK_EXTENSION_SUBSET(instance, vkGetInstanceProcAddr, device, vkGetDeviceProcAddr);
 }
 
 VkSurfaceFormatKHR VulkanRenderer::ChooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats)
@@ -2175,6 +2181,7 @@ void VulkanRenderer::ClearLightBufferData()
 void VulkanRenderer::RenderBegin()
 {
 	/// state
+	isMeshShader = isMeshShaderState;
 	isClusteShading = isClusteShadingState;
 	isCpuClusteCull = isCpuClusteCullState;
 	isIspc = isIspcState;

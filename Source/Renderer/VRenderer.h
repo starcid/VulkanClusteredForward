@@ -174,7 +174,7 @@ public:
 	void UpdateComputeDescriptorSet();
 
 	bool IsMeshShading() { return isMeshShader; }
-	void SetMeshShading(bool _isMeshShading) { isMeshShader = _isMeshShading; }
+	void SetMeshShading(bool _isMeshShading) { isMeshShaderState = _isMeshShading; }
 
 	bool IsClusteShading() { return isClusteShading; }
 	void SetClusteShading(bool _isClusteShading) { isClusteShadingState = _isClusteShading; }
@@ -376,8 +376,9 @@ private:
 	bool isIspcState;
 	bool isCpuClusteCull;
 	bool isCpuClusteCullState;
-
 	bool isMeshShader;
+	bool isMeshShaderState;
+
 	bool isTaskShaderInit;
 
 	double cpuCullTime;

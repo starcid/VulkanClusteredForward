@@ -93,6 +93,11 @@ bool SampleScene::OnUpdate(float dt)
 		}
 		vRenderer->ClearLightBufferData();
 	}
+	else if (Application::Inst()->GetPressedKey() == GLFW_KEY_M)
+	{
+		VulkanRenderer* vRenderer = (VulkanRenderer*)Application::Inst()->GetRenderer();
+		vRenderer->SetMeshShading(!vRenderer->IsMeshShading());
+	}
 
 	return true;
 }
