@@ -188,7 +188,7 @@ void TOModel::GenerateMeshlets(void* vtxData, int vtxNum)
 	int triangleNum = vtxNum / 3;
 	int max_primitive = MAX_MESH_SHADER_VERTICES / 3;	// no indice buffer, so this is low to 21(less than 126... next optimization)
 	int max_vtx = max_primitive * 3;
-	int meshLetNum = triangleNum / max_primitive + (triangleNum % max_primitive) != 0 ? 1 : 0;
+	int meshLetNum = triangleNum / max_primitive + ( (triangleNum % max_primitive) != 0 ? 1 : 0 );
 	Meshlet* mestLets = new Meshlet[meshLetNum];
 	for (int i = 0; i < vtxNum; i++)
 	{

@@ -1079,22 +1079,27 @@ void VulkanRenderer::CreateGraphicsPipeline()
 	}
 
 	// also create a mesh shading pipeline (no task shader for now)
-	if (isTaskShaderInit)
+	if (is_mesh_shading_supported)
 	{
-		shaderStages[0] = taskShaderStageInfo;
-		shaderStages[1] = meshShaderStageInfo;
-		shaderStages[2] = fragShaderStageInfo;
-		shaderStagesNum = 3;
-	}
-	else
-	{
-		shaderStages[0] = meshShaderStageInfo;
-		shaderStages[1] = fragShaderStageInfo;
-		shaderStagesNum = 2;
-	}
+		if (isTaskShaderInit)
+		{
+			shaderStages[0] = taskShaderStageInfo;
+			shaderStages[1] = meshShaderStageInfo;
+			shaderStages[2] = fragShaderStageInfo;
+			shaderStagesNum = 3;
+		}
+		else
+		{
+			shaderStages[0] = meshShaderStageInfo;
+			shaderStages[1] = fragShaderStageInfo;
+			shaderStagesNum = 2;
+		}
+		pipelineInfo.stageCount = shaderStagesNum;
+		pipelineInfo.pStages = shaderStages;
 
-	if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &mesh_pipeline) != VK_SUCCESS) {
-		throw std::runtime_error("failed to create mesh shading pipeline!");
+		if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &mesh_pipeline) != VK_SUCCESS) {
+			throw std::runtime_error("failed to create mesh shading pipeline!");
+		}
 	}
 }
 
