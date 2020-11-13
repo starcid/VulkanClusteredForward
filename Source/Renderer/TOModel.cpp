@@ -188,7 +188,7 @@ void TOModel::GenerateMeshlets(void* vtxData, int vtxNum)
 	VkDescriptorBufferInfo vertex_storage_buffer_info;
 	vertex_storage_buffer_info.buffer = vertex_storage_buffer;
 	vertex_storage_buffer_info.offset = 0;
-	vertex_storage_buffer_info.range = sizeof(Vertex)*vtxNum;
+	vertex_storage_buffer_info.range = sizeof(Vertex_Storage)*vtxNum;
 	vertex_storage_buffer_infos.push_back(vertex_storage_buffer_info);
 
 	int triangleNum = vtxNum / 3;

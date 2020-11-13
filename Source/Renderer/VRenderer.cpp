@@ -276,7 +276,6 @@ void VulkanRenderer::PickPhysicalDevice()
 	}
 
 	/// check mesh shading
-	meshshading_device_property = NULL;
 	if (is_mesh_shading_supported)
 	{
 		VkPhysicalDeviceMeshShaderPropertiesNV vkMeshShaderProperty{};
@@ -288,7 +287,8 @@ void VulkanRenderer::PickPhysicalDevice()
 		physical_device_property2.pNext = &vkMeshShaderProperty;
 		vkGetPhysicalDeviceProperties2(physical_device, &physical_device_property2);
 
-		meshshading_device_property = (VkPhysicalDeviceMeshShaderPropertiesNV*)physical_device_property2.pNext;
+		VkPhysicalDeviceMeshShaderPropertiesNV* meshshading_device_property = (VkPhysicalDeviceMeshShaderPropertiesNV*)physical_device_property2.pNext;
+		max_draw_mesh_tasks_count = meshshading_device_property->maxDrawMeshTasksCount;
 	}
 }
 
@@ -1331,8 +1331,8 @@ void VulkanRenderer::ReleaseCompDescriptorSets()
 
 uint32_t VulkanRenderer::GetMaxDrawMeshTaskCount()
 {
-	if (is_mesh_shading_supported && meshshading_device_property != NULL)
-		return meshshading_device_property->maxDrawMeshTasksCount;
+	if (is_mesh_shading_supported)
+		return max_draw_mesh_tasks_count;
 	return 0;
 }
 

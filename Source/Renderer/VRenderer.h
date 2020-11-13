@@ -271,7 +271,7 @@ private:
 private:
 	VkInstance instance;
 	VkPhysicalDevice physical_device;
-	VkPhysicalDeviceMeshShaderPropertiesNV *meshshading_device_property;
+	uint32_t max_draw_mesh_tasks_count;
 	bool is_mesh_shading_supported;
 	VkDevice device;
 	VkQueue graphics_queue;
