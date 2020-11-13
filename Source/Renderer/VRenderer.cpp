@@ -217,6 +217,14 @@ void VulkanRenderer::CleanUp()
 
 	vkDestroyShaderModule(device, frag_shader_module, nullptr);
 	vkDestroyShaderModule(device, vert_shader_module, nullptr);
+	if (is_mesh_shading_supported)
+	{
+		vkDestroyShaderModule(device, mesh_shader_module, nullptr);
+		if (isTaskShaderInit)
+		{
+			vkDestroyShaderModule(device, task_shader_module, nullptr);
+		}
+	}
 
 	for (auto imageView : swap_chain_image_views) {
 		vkDestroyImageView(device, imageView, nullptr);
