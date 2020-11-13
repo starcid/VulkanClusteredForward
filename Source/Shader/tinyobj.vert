@@ -44,18 +44,20 @@ layout(location = 3) in vec3 inNormal;
 layout(location = 4) in vec3 inTangent;
 layout(location = 5) in vec3 inBitangent;
 
-layout(location = 0) out vec3 fragColor;
-layout(location = 1) out vec3 fragTexCoord;
-layout(location = 2) out vec3 fragPos;
-layout(location = 3) out vec3 tanViewPos;
-layout(location = 4) out vec3 tanFragPos;
-layout(location = 5) out vec3 tanLightPos[16];
+layout (location = 0) out Interpolants {
+    vec3 fragColor;
+    vec3 fragTexCoord;
+    vec3 fragPos;
+    vec3 tanViewPos;
+    vec3 tanFragPos;
+    vec3 tanLightPos[16];
+} OUT;
 
 void main() {
     gl_Position = transform.mvp * inPosition;
-    fragColor = inColor;
-    fragTexCoord = inTexcoord;
-    fragPos = vec3(transform.model * inPosition);
+    OUT.fragColor = inColor;
+    OUT.fragTexCoord = inTexcoord;
+    OUT.fragPos = vec3(transform.model * inPosition);
 
     mat3 normalMatrix = transpose(inverse(mat3(transform.model))); /// maybe have scale
     vec3 T = normalize(vec3(normalMatrix * inTangent));
@@ -65,7 +67,7 @@ void main() {
     mat3 TBN = mat3(T, B, N);
     TBN = transpose(TBN);
     for(int i = 0; i < MAX_LIGHT_NUM; i++)
-        tanLightPos[i] = TBN * pointLight[i].pos;
-    tanViewPos  = TBN * transform.cam_pos;
-    tanFragPos  = TBN * fragPos;
+        OUT.tanLightPos[i] = TBN * pointLight[i].pos;
+    OUT.tanViewPos  = TBN * transform.cam_pos;
+    OUT.tanFragPos  = TBN * OUT.fragPos;
 }

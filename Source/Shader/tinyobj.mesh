@@ -66,12 +66,14 @@ layout (std430, binding = 8) readonly buffer vtxBuf{
     Vertex vertices[];
 };
 
-layout(location = 0) out vec3 fragColor[];
-layout(location = 1) out vec3 fragTexCoord[];
-layout(location = 2) out vec3 fragPos[];
-layout(location = 3) out vec3 tanViewPos[];
-layout(location = 4) out vec3 tanFragPos[];
-layout(location = 5) out vec3 tanLightPos[][16];
+layout (location = 0) out Interpolants {
+    vec3 fragColor;
+    vec3 fragTexCoord;
+    vec3 fragPos;
+    vec3 tanViewPos;
+    vec3 tanFragPos;
+    vec3 tanLightPos[16];
+} OUT[];
 
 void main()
 {
@@ -84,9 +86,9 @@ void main()
     {
         uint vi = meshLets[mi].vertices[i];
         gl_MeshVerticesNV[i].gl_Position = transform.mvp * vertices[vi].position;
-        fragColor[i] = vertices[vi].color;
-        fragTexCoord[i] = vertices[vi].texcoord;
-        fragPos[i] = vec3(transform.model * vertices[vi].position);
+        OUT[i].fragColor = vertices[vi].color;
+        OUT[i].fragTexCoord = vertices[vi].texcoord;
+        OUT[i].fragPos = vec3(transform.model * vertices[vi].position);
 
         vec3 T = normalize(vec3(normalMatrix * vertices[vi].tangent));
         vec3 N = normalize(vec3(normalMatrix * vertices[vi].normal));
@@ -95,9 +97,9 @@ void main()
         mat3 TBN = mat3(T, B, N);
         TBN = transpose(TBN);
         for(int j = 0; j < MAX_LIGHT_NUM; j++)
-            tanLightPos[i][j] = TBN * pointLight[j].pos;
-        tanViewPos[i]  = TBN * transform.cam_pos;
-        tanFragPos[i]  = TBN * fragPos[i];
+            OUT[i].tanLightPos[j] = TBN * pointLight[j].pos;
+        OUT[i].tanViewPos = TBN * transform.cam_pos;
+        OUT[i].tanFragPos = TBN * OUT[i].fragPos;
     }
     gl_PrimitiveCountNV = uint(vertex_count) / 3;
     for (uint i = 0; i < vertex_count; ++i)

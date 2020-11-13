@@ -53,12 +53,14 @@ layout (std430, binding = 4) readonly buffer lightGridSSBO{
 layout(binding = 5) uniform sampler2D albedoSampler;
 layout(binding = 6) uniform sampler2D normalSampler;
 
-layout(location = 0) in vec3 fragColor;
-layout(location = 1) in vec3 fragTexCoord;
-layout(location = 2) in vec3 fragPos;
-layout(location = 3) in vec3 tanViewPos;
-layout(location = 4) in vec3 tanFragPos;
-layout(location = 5) in vec3 tanLightPos[16];
+layout (location = 0) in Interpolants {
+    vec3 fragColor;
+    vec3 fragTexCoord;
+    vec3 fragPos;
+    vec3 tanViewPos;
+    vec3 tanFragPos;
+    vec3 tanLightPos[16];
+} IN;
 
 layout(location = 0) out vec4 outColor;
 
@@ -110,7 +112,7 @@ vec3 lightingColor(uint i)
     vec3 albedo;
     if (material.has_albedo_map > 0)
     {
-        albedo = texture(albedoSampler, fragTexCoord.xy).rgb;
+        albedo = texture(albedoSampler, IN.fragTexCoord.xy).rgb;
     }
     else
     {
@@ -122,7 +124,7 @@ vec3 lightingColor(uint i)
     vec3 normal;
     if (material.has_normal_map > 0)
     {
-        normal = texture(normalSampler, fragTexCoord.xy).rgb;
+        normal = texture(normalSampler, IN.fragTexCoord.xy).rgb;
         normal = normalize(normal * 2.0 - 1.0);
     }
     else
@@ -130,17 +132,17 @@ vec3 lightingColor(uint i)
         normal = vec3(0, 0, 1);
     }
     // diffuse
-    vec3 lightDir = normalize(tanLightPos[i] - tanFragPos);
+    vec3 lightDir = normalize(IN.tanLightPos[i] - IN.tanFragPos);
     float lambertian = max(dot(lightDir, normal), 0.0);
     vec3 diffuse = pointLight[i].diffuse_intensity * albedo * lambertian * pointLight[i].color;
     // specular
-    vec3 viewDir  = normalize(tanViewPos - tanFragPos);
+    vec3 viewDir  = normalize(IN.tanViewPos - IN.tanFragPos);
     vec3 halfDir = normalize(lightDir + viewDir);
     float specAngle = max(dot(halfDir, normal), 0.0);
     float spec = pow(specAngle, 32);
     vec3 specular = pointLight[i].specular_intensity * spec * pointLight[i].color;
     // attenuation
-    float distance    = length(pointLight[i].pos - fragPos);
+    float distance    = length(pointLight[i].pos - IN.fragPos);
     ///float attenuation = 1.0 / (pointLight[i].attenuation_constant + pointLight[i].attenuation_linear * distance + pointLight[i].attenuation_exp * (distance * distance)); 
     float attenuation = pow(smoothstep(pointLight[i].radius, 0, distance), 2);
     ambient *= attenuation;
