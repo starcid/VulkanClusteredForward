@@ -59,6 +59,7 @@ struct Vertex {
 	vec3 normal;
 	vec3 tangent;
 	vec3 bitangent;
+    float padding;
 };
 
 layout (std430, binding = 8) readonly buffer vtxBuf{

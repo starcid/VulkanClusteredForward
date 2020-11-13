@@ -445,6 +445,12 @@ void VulkanRenderer::CreateLogicDevice()
 	}
 
 	VkPhysicalDeviceFeatures deviceFeatures = {};
+	VkPhysicalDeviceMeshShaderFeaturesNV nvFeatures = {};
+	nvFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MESH_SHADER_FEATURES_NV;
+	nvFeatures.pNext = NULL;
+	nvFeatures.meshShader = is_mesh_shading_supported;
+	nvFeatures.taskShader = is_mesh_shading_supported;
+
 	VkDeviceCreateInfo createInfo = {};
 	createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
 	createInfo.pQueueCreateInfos = queueCreateInfos.data();
@@ -453,6 +459,11 @@ void VulkanRenderer::CreateLogicDevice()
 	createInfo.pEnabledFeatures = &deviceFeatures;
 	createInfo.enabledExtensionCount = static_cast<uint32_t>(deviceExtensions.size());
 	createInfo.ppEnabledExtensionNames = deviceExtensions.data();
+
+	if (is_mesh_shading_supported)
+	{
+		createInfo.pNext = &nvFeatures;
+	}
 
 	if (enableValidationLayers) {
 		createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
@@ -822,7 +833,6 @@ void VulkanRenderer::CreateGraphicsPipeline()
 	catch (std::runtime_error& e)
 	{
 		isTaskShaderInit = false;
-		std::cout << e.what() << " : " << taskCode << std::endl;
 	}
 
 	vert_shader_module = createShaderModule(vertShaderCode);
@@ -1102,6 +1112,7 @@ void VulkanRenderer::CreateGraphicsPipeline()
 		}
 		pipelineInfo.stageCount = shaderStagesNum;
 		pipelineInfo.pStages = shaderStages;
+		pipelineInfo.pVertexInputState = nullptr;
 
 		if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &mesh_pipeline) != VK_SUCCESS) {
 			throw std::runtime_error("failed to create mesh shading pipeline!");

@@ -47,6 +47,17 @@ struct Vertex {
 	glm::vec3 bitangent;
 };
 
+/// std 430 usgae
+struct Vertex_Storage {
+	glm::vec4 pos;
+	glm::vec3 color;
+	glm::vec3 texcoord;
+	glm::vec3 normal;
+	glm::vec3 tangent;
+	glm::vec3 bitangent;
+	float padding;
+};
+
 /// meshlet for mesh shading
 struct Meshlet {
 	glm::uint vertices[MAX_MESH_SHADER_VERTICES];

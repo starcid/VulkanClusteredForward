@@ -170,11 +170,17 @@ void TOModel::GenerateMeshlets(void* vtxData, int vtxNum)
 	VulkanRenderer* vRenderer = (VulkanRenderer*)Application::Inst()->GetRenderer();
 	Vertex* vertices = (Vertex*)vtxData;
 
+	Vertex_Storage* vertices_storage = new Vertex_Storage[vtxNum];
+	for (int i = 0; i < vtxNum; i++)
+	{
+		memcpy(vertices_storage + i, vertices + i, sizeof(Vertex));
+	}
+
 	void* verticesDatas;
 	VkBuffer vertex_storage_buffer;
 	VkDeviceMemory vertex_storage_buffer_memory;
-	vRenderer->CreateLocalStorageBuffer(&verticesDatas, sizeof(Vertex)*vtxNum, vertex_storage_buffer, vertex_storage_buffer_memory);
-	memcpy(verticesDatas, vertices, sizeof(Vertex) * vtxNum);	// set to gpu
+	vRenderer->CreateLocalStorageBuffer(&verticesDatas, sizeof(Vertex_Storage)*vtxNum, vertex_storage_buffer, vertex_storage_buffer_memory);
+	memcpy(verticesDatas, vertices_storage, sizeof(Vertex_Storage) * vtxNum);	// set to gpu
 	vRenderer->UnmapBufferMemory(vertex_storage_buffer_memory); // unmap ok
 	vertex_storage_buffers.push_back(vertex_storage_buffer);
 	vertex_storage_buffer_memorys.push_back(vertex_storage_buffer_memory);
@@ -190,6 +196,7 @@ void TOModel::GenerateMeshlets(void* vtxData, int vtxNum)
 	int max_vtx = max_primitive * 3;
 	int meshLetNum = triangleNum / max_primitive + ( (triangleNum % max_primitive) != 0 ? 1 : 0 );
 	Meshlet* mestLets = new Meshlet[meshLetNum];
+	memset(mestLets, 0, sizeof(Meshlet) * meshLetNum);
 	for (int i = 0; i < vtxNum; i++)
 	{
 		int meshLetIdx = i / max_vtx;
@@ -215,6 +222,7 @@ void TOModel::GenerateMeshlets(void* vtxData, int vtxNum)
 	meshlet_buffer_infos.push_back(meshlet_buffer_info);
 
 	delete[] mestLets;
+	delete[] vertices_storage;
 }
 
 bool TOModel::LoadFromPath(std::string path)
