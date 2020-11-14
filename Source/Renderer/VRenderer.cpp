@@ -1089,7 +1089,7 @@ void VulkanRenderer::CreateGraphicsPipeline()
 	/// pipeline layout
 	VkPipelineLayoutCreateInfo pipelineLayoutInfo = {};
 	pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-	pipelineLayoutInfo.setLayoutCount = 2;
+	pipelineLayoutInfo.setLayoutCount = layout_num;
 	pipelineLayoutInfo.pSetLayouts = layouts;
 	pipelineLayoutInfo.pushConstantRangeCount = 0; // Optional
 	pipelineLayoutInfo.pPushConstantRanges = nullptr; // Optional
