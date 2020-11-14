@@ -7,7 +7,7 @@ struct LightGrid{
     uint count;
 };
 
-layout (std140, binding = 0) uniform TransformData {
+layout (std140, binding = 0, set = 0) uniform TransformData {
     mat4 mvp;
     mat4 model;
     mat4 view;
@@ -22,13 +22,13 @@ layout (std140, binding = 0) uniform TransformData {
     float bias;
 } transform;
 
-layout(std140, binding = 1) uniform MaterialData
+layout(std140, binding = 1, set = 0) uniform MaterialData
 {
     int has_albedo_map;
     int has_normal_map;
 } material;
 
-layout(std140, binding = 2) uniform PointLightData
+layout(std140, binding = 2, set = 0) uniform PointLightData
 {
     vec3 pos;
 	float radius;
@@ -43,15 +43,15 @@ layout(std140, binding = 2) uniform PointLightData
     vec2 padding;
 } pointLight[MAX_LIGHT_NUM];
 
-layout (std430, binding = 3) readonly buffer lightIndexSSBO{
+layout (std430, binding = 3, set = 0) readonly buffer lightIndexSSBO{
     uint globalLightIndexList[];
 };
-layout (std430, binding = 4) readonly buffer lightGridSSBO{
+layout (std430, binding = 4, set = 0) readonly buffer lightGridSSBO{
     LightGrid lightGrid[];
 };
 
-layout(binding = 5) uniform sampler2D albedoSampler;
-layout(binding = 6) uniform sampler2D normalSampler;
+layout(binding = 5, set = 0) uniform sampler2D albedoSampler;
+layout(binding = 6, set = 0) uniform sampler2D normalSampler;
 
 layout (location = 0) in Interpolants {
     vec3 fragColor;

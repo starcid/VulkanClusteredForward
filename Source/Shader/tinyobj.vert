@@ -1,7 +1,7 @@
 #version 450
 #extension GL_ARB_separate_shader_objects : enable
 #define MAX_LIGHT_NUM 16
-layout (std140, binding = 0) uniform TransformData {
+layout (std140, binding = 0, set = 0) uniform TransformData {
     mat4 mvp;
     mat4 model;
     mat4 view;
@@ -16,13 +16,13 @@ layout (std140, binding = 0) uniform TransformData {
     float bias;
 } transform;
 
-layout(std140, binding = 1) uniform MaterialData
+layout(std140, binding = 1, set = 0) uniform MaterialData
 {
     int has_albedo_map;
     int has_normal_map;
 } material;
 
-layout(std140, binding = 2) uniform PointLightData
+layout(std140, binding = 2, set = 0) uniform PointLightData
 {
     vec3 pos;
 	float radius;

@@ -75,6 +75,12 @@ VulkanRenderer::VulkanRenderer(GLFWwindow* win)
 	CreateCommandBuffers();
 	CreateUniformBuffers();
 	CreateDescriptorSetsPool();
+
+	if (is_mesh_shading_supported)
+	{
+		CreateMeshletDescriptorSetsPool();
+	}
+
 	CreateSemaphores();
 
 	clear_color = { 0.0f, 0.0f, 0.0f, 1.0f };
@@ -191,6 +197,12 @@ void VulkanRenderer::CleanUp()
 	vkDestroyCommandPool(device, command_pool, nullptr);
 	vkDestroyDescriptorSetLayout(device, desc_layout, nullptr);
 	vkDestroyDescriptorPool(device, desc_pool, nullptr);
+
+	if (is_mesh_shading_supported)
+	{
+		vkDestroyDescriptorSetLayout(device, meshlet_desc_layout, nullptr);
+		vkDestroyDescriptorPool(device, meshlet_desc_pool, nullptr);
+	}
 
 	for (auto framebuffer : swap_chain_framebuffers) {
 		vkDestroyFramebuffer(device, framebuffer, nullptr);
@@ -982,7 +994,10 @@ void VulkanRenderer::CreateGraphicsPipeline()
 	colorBlending.blendConstants[2] = 0.0f; // Optional
 	colorBlending.blendConstants[3] = 0.0f; // Optional
 
-	/// uniform layout
+	/// normal layout
+	VkDescriptorSetLayout layouts[2];
+	int layout_num = 0;
+
 	VkDescriptorSetLayoutBinding layoutBinding = {};
 	layoutBinding.binding = 0;
 	layoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -1033,46 +1048,49 @@ void VulkanRenderer::CreateGraphicsPipeline()
 	samplerLayoutBinding1.pImmutableSamplers = nullptr;
 	samplerLayoutBinding1.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
+	std::array<VkDescriptorSetLayoutBinding, 7> bindings = { layoutBinding, layoutBinding1, layoutBinding2, samplerLayoutBinding, samplerLayoutBinding1,lightIndexLayoutBinding, lightGridLayoutBinding };
+	VkDescriptorSetLayoutCreateInfo descriptorLayout = {};
+	descriptorLayout.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+	descriptorLayout.pNext = NULL;
+	descriptorLayout.bindingCount = static_cast<uint32_t>(bindings.size());
+	descriptorLayout.pBindings = bindings.data();
+	vkCreateDescriptorSetLayout(device, &descriptorLayout, NULL, &desc_layout);
+	layouts[0] = desc_layout;
+	layout_num++;
+
 	if (is_mesh_shading_supported)
 	{
 		VkDescriptorSetLayoutBinding meshletLayoutBinding = {};
-		meshletLayoutBinding.binding = 7;
+		meshletLayoutBinding.binding = 0;
 		meshletLayoutBinding.descriptorCount = 1;
 		meshletLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
 		meshletLayoutBinding.pImmutableSamplers = nullptr;
 		meshletLayoutBinding.stageFlags = VK_SHADER_STAGE_MESH_BIT_NV;
 
 		VkDescriptorSetLayoutBinding vertexLayoutBinding = {};
-		vertexLayoutBinding.binding = 8;
+		vertexLayoutBinding.binding = 1;
 		vertexLayoutBinding.descriptorCount = 1;
 		vertexLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
 		vertexLayoutBinding.pImmutableSamplers = nullptr;
 		vertexLayoutBinding.stageFlags = VK_SHADER_STAGE_MESH_BIT_NV;
 	
-		std::array<VkDescriptorSetLayoutBinding, 9> bindings = { layoutBinding, layoutBinding1, layoutBinding2, samplerLayoutBinding, samplerLayoutBinding1,lightIndexLayoutBinding, lightGridLayoutBinding, meshletLayoutBinding, vertexLayoutBinding };
+		std::array<VkDescriptorSetLayoutBinding, 2> meshlet_bindings = { meshletLayoutBinding, vertexLayoutBinding };
 		VkDescriptorSetLayoutCreateInfo descriptorLayout = {};
 		descriptorLayout.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
 		descriptorLayout.pNext = NULL;
-		descriptorLayout.bindingCount = static_cast<uint32_t>(bindings.size());
-		descriptorLayout.pBindings = bindings.data();
-		vkCreateDescriptorSetLayout(device, &descriptorLayout, NULL, &desc_layout);
-	}
-	else
-	{
-		std::array<VkDescriptorSetLayoutBinding, 7> bindings = { layoutBinding, layoutBinding1, layoutBinding2, samplerLayoutBinding, samplerLayoutBinding1,lightIndexLayoutBinding, lightGridLayoutBinding };
-		VkDescriptorSetLayoutCreateInfo descriptorLayout = {};
-		descriptorLayout.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-		descriptorLayout.pNext = NULL;
-		descriptorLayout.bindingCount = static_cast<uint32_t>(bindings.size());
-		descriptorLayout.pBindings = bindings.data();
-		vkCreateDescriptorSetLayout(device, &descriptorLayout, NULL, &desc_layout);
-	}
+		descriptorLayout.bindingCount = static_cast<uint32_t>(meshlet_bindings.size());
+		descriptorLayout.pBindings = meshlet_bindings.data();
+		vkCreateDescriptorSetLayout(device, &descriptorLayout, NULL, &meshlet_desc_layout);
 
+		layouts[1] = meshlet_desc_layout;
+		layout_num++;
+	}
+	
 	/// pipeline layout
 	VkPipelineLayoutCreateInfo pipelineLayoutInfo = {};
 	pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-	pipelineLayoutInfo.setLayoutCount = 1;
-	pipelineLayoutInfo.pSetLayouts = &desc_layout;
+	pipelineLayoutInfo.setLayoutCount = 2;
+	pipelineLayoutInfo.pSetLayouts = layouts;
 	pipelineLayoutInfo.pushConstantRangeCount = 0; // Optional
 	pipelineLayoutInfo.pPushConstantRanges = nullptr; // Optional
 
@@ -1794,12 +1812,15 @@ void VulkanRenderer::CreateCommandBuffers()
 	}
 }
 
-void VulkanRenderer::UpdateMaterial(Material* mat, VkDescriptorBufferInfo* meshletBufInfo, VkDescriptorBufferInfo* vertexBufInfo)
+void VulkanRenderer::UpdateMaterial(Material* mat)
 {
 	VkDescriptorSet* descSets = mat->GetDescriptorSets();
+
+	vkCmdBindDescriptorSets(command_buffers[active_command_buffer_idx], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_layout, 0, 1, &descSets[active_command_buffer_idx], 0, nullptr);
+
 	if (!mat->IsDescSetUpdated())
 	{
-		std::array<VkWriteDescriptorSet, 9> descriptorWrites = {};
+		std::array<VkWriteDescriptorSet, 7> descriptorWrites = {};
 		descriptorWrites[0] = {};
 		descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 		descriptorWrites[0].pNext = NULL;
@@ -1872,40 +1893,41 @@ void VulkanRenderer::UpdateMaterial(Material* mat, VkDescriptorBufferInfo* meshl
 		descriptorWrites[6].descriptorCount = 1;
 		descriptorWrites[6].pImageInfo = normal_image_info;
 
-		if (isMeshShader)
-		{
-			/// meshlets
-			descriptorWrites[7] = {};
-			descriptorWrites[7].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-			descriptorWrites[7].pNext = NULL;
-			descriptorWrites[7].dstSet = descSets[active_command_buffer_idx];
-			descriptorWrites[7].descriptorCount = 1;
-			descriptorWrites[7].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-			descriptorWrites[7].pBufferInfo = meshletBufInfo;
-			descriptorWrites[7].dstArrayElement = 0;
-			descriptorWrites[7].dstBinding = 7;
-
-			/// vertex buffer
-			descriptorWrites[8] = {};
-			descriptorWrites[8].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-			descriptorWrites[8].pNext = NULL;
-			descriptorWrites[8].dstSet = descSets[active_command_buffer_idx];
-			descriptorWrites[8].descriptorCount = 1;
-			descriptorWrites[8].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-			descriptorWrites[8].pBufferInfo = vertexBufInfo;
-			descriptorWrites[8].dstArrayElement = 0;
-			descriptorWrites[8].dstBinding = 8;
-		}
-
-		if (isMeshShader)
-			vkUpdateDescriptorSets(device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, NULL);
-		else
-			vkUpdateDescriptorSets(device, static_cast<uint32_t>(descriptorWrites.size() - 2), descriptorWrites.data(), 0, NULL);
+		vkUpdateDescriptorSets(device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, NULL);
 
 		mat->SetDescUpdated();
 	}
+}
 
-	vkCmdBindDescriptorSets(command_buffers[active_command_buffer_idx], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_layout, 0, 1, &descSets[active_command_buffer_idx], 0, nullptr);
+void VulkanRenderer::UploadMeshlets(VkDescriptorBufferInfo* meshletBufInfo, VkDescriptorBufferInfo* vertexBufInfo, VkDescriptorSet* descSets)
+{
+	vkCmdBindDescriptorSets(command_buffers[active_command_buffer_idx], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_layout, 1, 1, &descSets[active_command_buffer_idx], 0, nullptr);
+
+	std::array<VkWriteDescriptorSet, 2> descriptorWrites = {};
+
+	/// meshlets
+	descriptorWrites[0] = {};
+	descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+	descriptorWrites[0].pNext = NULL;
+	descriptorWrites[0].dstSet = descSets[active_command_buffer_idx];
+	descriptorWrites[0].descriptorCount = 1;
+	descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+	descriptorWrites[0].pBufferInfo = meshletBufInfo;
+	descriptorWrites[0].dstArrayElement = 0;
+	descriptorWrites[0].dstBinding = 0;
+
+	/// vertex buffer
+	descriptorWrites[1] = {};
+	descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+	descriptorWrites[1].pNext = NULL;
+	descriptorWrites[1].dstSet = descSets[active_command_buffer_idx];
+	descriptorWrites[1].descriptorCount = 1;
+	descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+	descriptorWrites[1].pBufferInfo = vertexBufInfo;
+	descriptorWrites[1].dstArrayElement = 0;
+	descriptorWrites[1].dstBinding = 1;
+	
+	vkUpdateDescriptorSets(device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, NULL);
 }
 
 void VulkanRenderer::SetMvpMatrix(glm::mat4x4& mvpMtx)
@@ -2002,7 +2024,7 @@ void VulkanRenderer::CreateUniformBuffers()
 
 void VulkanRenderer::CreateDescriptorSetsPool()
 {
-	std::array<VkDescriptorPoolSize, 9> typeCounts = {};
+	std::array<VkDescriptorPoolSize, 7> typeCounts = {};
 	typeCounts[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 	typeCounts[0].descriptorCount = swap_chain_images.size() * MAX_MATERIAL_NUM;
 	typeCounts[1].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -2017,10 +2039,6 @@ void VulkanRenderer::CreateDescriptorSetsPool()
 	typeCounts[5].descriptorCount = swap_chain_images.size() * MAX_MATERIAL_NUM;
 	typeCounts[6].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 	typeCounts[6].descriptorCount = swap_chain_images.size() * MAX_MATERIAL_NUM;
-	typeCounts[7].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-	typeCounts[7].descriptorCount = swap_chain_images.size() * MAX_MATERIAL_NUM;
-	typeCounts[8].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-	typeCounts[8].descriptorCount = swap_chain_images.size() * MAX_MATERIAL_NUM;
 
 	VkDescriptorPoolCreateInfo descriptorPool = {};
 	descriptorPool.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
@@ -2048,6 +2066,43 @@ void VulkanRenderer::AllocateDescriptorSets(VkDescriptorSet* descSets)
 void VulkanRenderer::FreeDescriptorSets(VkDescriptorSet* descSets)
 {
 	vkFreeDescriptorSets(device, desc_pool, swap_chain_images.size(), descSets);
+}
+
+void VulkanRenderer::CreateMeshletDescriptorSetsPool()
+{
+	std::array<VkDescriptorPoolSize, 2> typeCounts = {};
+
+	typeCounts[0].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+	typeCounts[0].descriptorCount = swap_chain_images.size() * MAX_MODEL_NUM;
+	typeCounts[1].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+	typeCounts[1].descriptorCount = swap_chain_images.size() * MAX_MODEL_NUM;
+
+	VkDescriptorPoolCreateInfo descriptorPool = {};
+	descriptorPool.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+	descriptorPool.pNext = NULL;
+	descriptorPool.maxSets = swap_chain_images.size() * MAX_MODEL_NUM;
+	descriptorPool.poolSizeCount = static_cast<uint32_t>(typeCounts.size());
+	descriptorPool.pPoolSizes = typeCounts.data();
+	descriptorPool.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+
+	vkCreateDescriptorPool(device, &descriptorPool, NULL, &meshlet_desc_pool);
+}
+
+void VulkanRenderer::AllocateMeshletDescriptorSets(VkDescriptorSet* descSets)
+{
+	VkDescriptorSetLayout desc_layouts[3] = { meshlet_desc_layout, meshlet_desc_layout, meshlet_desc_layout };
+	VkDescriptorSetAllocateInfo allocInfo[1];
+	allocInfo[0].sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+	allocInfo[0].pNext = NULL;
+	allocInfo[0].descriptorPool = meshlet_desc_pool;
+	allocInfo[0].descriptorSetCount = swap_chain_images.size();
+	allocInfo[0].pSetLayouts = desc_layouts;
+	vkAllocateDescriptorSets(device, allocInfo, descSets);
+}
+
+void VulkanRenderer::FreeMeshletDescriptorSets(VkDescriptorSet* descSets)
+{
+	vkFreeDescriptorSets(device, meshlet_desc_pool, swap_chain_images.size(), descSets);
 }
 
 void VulkanRenderer::CreateCompDescriptorSetsPool()

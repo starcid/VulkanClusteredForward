@@ -130,6 +130,7 @@ class PointLight;
 class VulkanRenderer : public Renderer
 {
 	const int MAX_MATERIAL_NUM = 50;
+	const int MAX_MODEL_NUM = 1000;
 public:
 	VulkanRenderer(GLFWwindow* win);
 	virtual ~VulkanRenderer();
@@ -170,8 +171,12 @@ public:
 	void SetNormalTexture(Texture* tex);
 
 	void AllocateDescriptorSets(VkDescriptorSet* descSets);
-	void UpdateMaterial(Material* mat, VkDescriptorBufferInfo* meshletBufInfo = NULL, VkDescriptorBufferInfo* vertexBufInfo = NULL);
+	void UpdateMaterial(Material* mat);
 	void FreeDescriptorSets(VkDescriptorSet* descSets);
+
+	void AllocateMeshletDescriptorSets(VkDescriptorSet* descSets);
+	void UploadMeshlets(VkDescriptorBufferInfo* meshletBufInfo, VkDescriptorBufferInfo* vertexBufInfo, VkDescriptorSet* descSets);
+	void FreeMeshletDescriptorSets(VkDescriptorSet* descSets);
 
 	void CopyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
 	void TransitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
@@ -255,6 +260,8 @@ private:
 
 	void CreateDescriptorSetsPool();
 
+	void CreateMeshletDescriptorSetsPool();
+
 	void CreateCompDescriptorSetsPool();
 	void AllocateCompDescriptorSets(VkDescriptorSet* descSets);
 	void FreeCompDescriptorSets(VkDescriptorSet* descSets);
@@ -288,6 +295,8 @@ private:
 	VkRenderPass render_pass;
 	VkDescriptorSetLayout desc_layout;
 	VkDescriptorPool desc_pool;
+	VkDescriptorSetLayout meshlet_desc_layout;
+	VkDescriptorPool meshlet_desc_pool;
 	VkPipelineLayout pipeline_layout;
 	VkPipeline graphics_pipeline;
 	VkPipeline mesh_pipeline;

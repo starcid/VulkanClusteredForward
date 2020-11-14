@@ -47,6 +47,16 @@ TOModel::~TOModel()
 	}
 	vertex_storage_buffers.clear();
 	vertex_storage_buffer_memorys.clear();
+
+	if (vRenderer->IsMeshShadingSupported())
+	{
+		for (int i = 0; i < desc_sets_data.size(); i++)
+		{
+			vRenderer->FreeMeshletDescriptorSets(desc_sets_data[i]);
+			delete[] desc_sets_data[i];
+		}
+	}
+
 	for (int i = 0; i < index_buffers.size(); i++)
 	{
 		vRenderer->CleanBuffer(index_buffers[i], index_buffer_memorys[i]);
@@ -139,7 +149,7 @@ void TOModel::Draw()
 				Material* mat = material_insts[mat_ids[i]];
 				vRenderer->SetTexture(mat->GetDiffuseTexture());
 				vRenderer->SetNormalTexture(mat->GetNormalTexture());
-				vRenderer->UpdateMaterial(mat, &meshlet_buffer_infos[i], &vertex_storage_buffer_infos[i]);
+				vRenderer->UpdateMaterial(mat);
 			}
 			if (!vRenderer->IsMeshShading())
 			{
@@ -150,6 +160,8 @@ void TOModel::Draw()
 			}
 			else
 			{
+				vRenderer->UploadMeshlets(&meshlet_buffer_infos[i], &vertex_storage_buffer_infos[i], desc_sets_data[i]);
+
 				uint32_t count = meshlet_nums[i];
 				const uint32_t max_count = vRenderer->GetMaxDrawMeshTaskCount();
 				uint32_t start = 0;
@@ -223,6 +235,10 @@ void TOModel::GenerateMeshlets(void* vtxData, int vtxNum)
 
 	delete[] mestLets;
 	delete[] vertices_storage;
+
+	VkDescriptorSet* desc_sets = new VkDescriptorSet[3];
+	vRenderer->AllocateMeshletDescriptorSets(desc_sets);
+	desc_sets_data.push_back(desc_sets);
 }
 
 bool TOModel::LoadFromPath(std::string path)
