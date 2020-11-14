@@ -185,7 +185,13 @@ void TOModel::GenerateMeshlets(void* vtxData, int vtxNum)
 	Vertex_Storage* vertices_storage = new Vertex_Storage[vtxNum];
 	for (int i = 0; i < vtxNum; i++)
 	{
-		memcpy(vertices_storage + i, vertices + i, sizeof(Vertex));
+		///memcpy(vertices_storage + i, vertices + i, sizeof(Vertex));
+		vertices_storage[i].pos = vertices[i].pos;
+		vertices_storage[i].color = vertices[i].color;
+		vertices_storage[i].texcoord = vertices[i].texcoord;
+		vertices_storage[i].normal = vertices[i].normal;
+		vertices_storage[i].tangent = vertices[i].tangent;
+		vertices_storage[i].bitangent = vertices[i].bitangent;
 	}
 
 	void* verticesDatas;

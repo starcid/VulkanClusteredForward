@@ -51,11 +51,15 @@ struct Vertex {
 struct Vertex_Storage {
 	glm::vec4 pos;
 	glm::vec3 color;
+	float padding1;
 	glm::vec3 texcoord;
+	float padding2;
 	glm::vec3 normal;
+	float padding3;
 	glm::vec3 tangent;
+	float padding4;
 	glm::vec3 bitangent;
-	float padding;
+	float padding5;
 };
 
 /// meshlet for mesh shading

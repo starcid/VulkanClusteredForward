@@ -48,21 +48,25 @@ struct MeshLet{
     uint index_count;
 };
 
-layout (std140, binding = 0, set = 1) readonly buffer meshLetBuf{
+layout (std140, binding = 0, set = 1) buffer meshLetBuf{
     MeshLet meshLets[];
 };
 
 struct Vertex {
 	vec4 position;
 	vec3 color;
+    float padding1;
 	vec3 texcoord;
+    float padding2;
 	vec3 normal;
+    float padding3;
 	vec3 tangent;
+    float padding4;
 	vec3 bitangent;
-    float padding;
+    float padding5;
 };
 
-layout (std430, binding = 1, set = 1) readonly buffer vtxBuf{
+layout (std430, binding = 1, set = 1) buffer vtxBuf{
     Vertex vertices[];
 };
 
