@@ -1816,8 +1816,6 @@ void VulkanRenderer::UpdateMaterial(Material* mat)
 {
 	VkDescriptorSet* descSets = mat->GetDescriptorSets();
 
-	vkCmdBindDescriptorSets(command_buffers[active_command_buffer_idx], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_layout, 0, 1, &descSets[active_command_buffer_idx], 0, nullptr);
-
 	if (!mat->IsDescSetUpdated())
 	{
 		std::array<VkWriteDescriptorSet, 7> descriptorWrites = {};
@@ -1897,12 +1895,12 @@ void VulkanRenderer::UpdateMaterial(Material* mat)
 
 		mat->SetDescUpdated();
 	}
+
+	vkCmdBindDescriptorSets(command_buffers[active_command_buffer_idx], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_layout, 0, 1, &descSets[active_command_buffer_idx], 0, nullptr);
 }
 
 void VulkanRenderer::UploadMeshlets(VkDescriptorBufferInfo* meshletBufInfo, VkDescriptorBufferInfo* vertexBufInfo, VkDescriptorSet* descSets)
 {
-	vkCmdBindDescriptorSets(command_buffers[active_command_buffer_idx], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_layout, 1, 1, &descSets[active_command_buffer_idx], 0, nullptr);
-
 	std::array<VkWriteDescriptorSet, 2> descriptorWrites = {};
 
 	/// meshlets
@@ -1928,6 +1926,8 @@ void VulkanRenderer::UploadMeshlets(VkDescriptorBufferInfo* meshletBufInfo, VkDe
 	descriptorWrites[1].dstBinding = 1;
 	
 	vkUpdateDescriptorSets(device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, NULL);
+
+	vkCmdBindDescriptorSets(command_buffers[active_command_buffer_idx], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_layout, 1, 1, &descSets[active_command_buffer_idx], 0, nullptr);
 }
 
 void VulkanRenderer::SetMvpMatrix(glm::mat4x4& mvpMtx)
