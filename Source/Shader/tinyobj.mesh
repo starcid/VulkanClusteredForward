@@ -104,6 +104,6 @@ void main()
     gl_PrimitiveCountNV = uint(vertex_count) / 3;
     for (uint i = 0; i < vertex_count; ++i)
 	{
-		gl_PrimitiveIndicesNV[i] = i;///uint(meshLets[mi].vertices[i]);
+		gl_PrimitiveIndicesNV[i] = i;
 	}
 }
