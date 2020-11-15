@@ -47,7 +47,7 @@ struct MeshLet{
     uint vertex_count;
 };
 
-layout (std140, binding = 0, set = 1) buffer meshLetBuf{
+layout (binding = 0, set = 1) buffer meshLetBuf{
     MeshLet meshLets[];
 };
 
