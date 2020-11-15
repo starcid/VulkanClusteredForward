@@ -5,6 +5,7 @@ layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
 layout(triangles, max_vertices = 64, max_primitives = 126) out;
 
 #define MAX_LIGHT_NUM 16
+
 layout (std140, binding = 0, set = 0) uniform TransformData {
     mat4 mvp;
     mat4 model;
@@ -43,9 +44,7 @@ layout(std140, binding = 2, set = 0) uniform PointLightData
 
 struct MeshLet{
     uint vertices[64];
-    uint indices[378]; // up to 126 triangles
     uint vertex_count;
-    uint index_count;
 };
 
 layout (std140, binding = 0, set = 1) buffer meshLetBuf{
