@@ -1,6 +1,53 @@
 #include "DRenderer.h"
 
+inline std::string HrToString(HRESULT hr)
+{
+    char s_str[64] = {};
+    sprintf_s(s_str, "HRESULT of 0x%08X", static_cast<UINT>(hr));
+    return std::string(s_str);
+}
 
+class HrException : public std::runtime_error
+{
+public:
+    HrException(HRESULT hr) : std::runtime_error(HrToString(hr)), m_hr(hr) {}
+    HRESULT Error() const { return m_hr; }
+private:
+    const HRESULT m_hr;
+};
+
+inline void ThrowIfFailed(HRESULT hr)
+{
+    if (FAILED(hr))
+    {
+        throw HrException(hr);
+    }
+}
+
+#if defined(_DEBUG) || defined(DBG)
+inline void SetName(ID3D12Object* pObject, LPCWSTR name)
+{
+    pObject->SetName(name);
+}
+inline void SetNameIndexed(ID3D12Object* pObject, LPCWSTR name, UINT index)
+{
+    WCHAR fullName[50];
+    if (swprintf_s(fullName, L"%s[%u]", name, index) > 0)
+    {
+        pObject->SetName(fullName);
+    }
+}
+#else
+inline void SetName(ID3D12Object*, LPCWSTR)
+{
+}
+inline void SetNameIndexed(ID3D12Object*, LPCWSTR, UINT)
+{
+}
+#endif
+
+#define NAME_D3D12_OBJECT(x) SetName((x).Get(), L#x)
+#define NAME_D3D12_OBJECT_INDEXED(x, n) SetNameIndexed((x)[n].Get(), L#x, n)
 
 D12Renderer::D12Renderer(GLFWwindow* win)
 	:Renderer(win)
@@ -51,6 +98,24 @@ D12Renderer::D12Renderer(GLFWwindow* win)
         ));
     }
 
+    /// Queue ( we use graphics queue as compute queue if possible )
+    D3D12_COMMAND_QUEUE_DESC queueDesc = {};
+    queueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
+    queueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
+
+    ThrowIfFailed(m_device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&m_graphicsQueue)));
+    NAME_D3D12_OBJECT(m_graphicsQueue);
+    m_computeQueue = m_graphicsQueue; /// make sure later ... 
+
+    /// swap chain
+    DXGI_SWAP_CHAIN_DESC1 swapChainDesc = {};
+    swapChainDesc.BufferCount = 3;  /// include front buffer already
+    swapChainDesc.Width = winWidth;
+    swapChainDesc.Height = winHeight;
+    swapChainDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;  /// common format ?
+    swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+    swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+    swapChainDesc.SampleDesc.Count = 1;
 }
 
 D12Renderer::~D12Renderer()

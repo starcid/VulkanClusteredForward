@@ -63,7 +63,7 @@ VulkanRenderer::VulkanRenderer(GLFWwindow* win)
 	pointLightISPCDatas = new ispc::PointLightDataISPC[MAX_LIGHT_NUM];
 
 	/// set computer number and tile size in screen space
-	tile_size_x = (unsigned int)std::ceilf(Application::Inst()->GetWidth() / (float)CLUSTE_X);;
+	tile_size_x = (unsigned int)std::ceilf(winWidth / (float)CLUSTE_X);;
 	group_num = glm::uvec3(CLUSTE_X, CLUSTE_Y, CLUSTE_Z);
 
 	///if( isClusteShading )
@@ -531,7 +531,7 @@ VkExtent2D VulkanRenderer::ChooseSwapExtent(const VkSurfaceCapabilitiesKHR& capa
 		return capabilities.currentExtent;
 	}
 	else {
-		VkExtent2D actualExtent = { (uint32_t)Application::Inst()->GetWidth(), (uint32_t)Application::Inst()->GetHeight() };
+		VkExtent2D actualExtent = { (uint32_t)winWidth, (uint32_t)winHeight };
 
 		actualExtent.width = std::max(capabilities.minImageExtent.width, std::min(capabilities.maxImageExtent.width, actualExtent.width));
 		actualExtent.height = std::max(capabilities.minImageExtent.height, std::min(capabilities.maxImageExtent.height, actualExtent.height));
@@ -1286,7 +1286,7 @@ void VulkanRenderer::CreateCompDescriptorSets()
 	bufferSize = sizeof(ScreenToView);
 	CreateLocalStorageBuffer(&screen_to_view_buffer_data, (uint32_t)bufferSize, screen_to_view_buffer, screen_to_view_buffer_memory);
 	ScreenToView* stv = (ScreenToView*)screen_to_view_buffer_data;
-	stv->screenDimensions = glm::uvec2(Application::Inst()->GetWidth(), Application::Inst()->GetHeight());
+	stv->screenDimensions = glm::uvec2(winWidth, winHeight);
 	stv->tileSizes = glm::uvec4(group_num, tile_size_x);
 	screen_to_view_buffer_info.buffer = screen_to_view_buffer;
 	screen_to_view_buffer_info.offset = 0;
@@ -2272,7 +2272,7 @@ void VulkanRenderer::RenderBegin()
 			/// update input data
 			ScreenToView screenToView;
 			SetScreenToViewData(&screenToView);
-			screenToView.screenDimensions = glm::uvec2(Application::Inst()->GetWidth(), Application::Inst()->GetHeight());
+			screenToView.screenDimensions = glm::uvec2(winWidth, winHeight);
 			screenToView.tileSizes = glm::uvec4(group_num, tile_size_x);
 
 			PointLightData* lightDatas = light_infos.data();

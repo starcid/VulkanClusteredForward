@@ -13,7 +13,7 @@ class Camera;
 class Renderer
 {
 public:
-	Renderer(GLFWwindow* win) : window(win) { camera = NULL; }
+	Renderer(GLFWwindow* win) : window(win) { glfwGetWindowSize(win, &winWidth, &winHeight); camera = NULL; }
 	virtual ~Renderer() {}
 
 	virtual void RenderBegin() = 0;
@@ -29,6 +29,8 @@ public:
 protected:
 	Camera* camera;
 	GLFWwindow* window;
+	int winWidth;
+	int winHeight;
 };
 
 #endif // !__RENDERER_H__

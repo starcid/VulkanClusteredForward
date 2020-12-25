@@ -115,7 +115,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Console</SubSystem>
       <AdditionalLibraryDirectories>C:\VulkanSDK\1.2.154.1\Lib;C:\Work\thirdparty\glfw-3.3.2.bin.WIN64\lib-vc2017;ThirdParty\tinyobjloader\Debug;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>vulkan-1.lib;shaderc.lib;OSDependent.lib;MachineIndependent.lib;VkLayer_utils.lib;SPIRV.lib;shaderc_util.lib;shaderc_shared.lib;OGLCompiler.lib;SPIRV-Tools.lib;glslang.lib;HLSL.lib;glfw3.lib;tinyobjloader.lib;D3d12.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>vulkan-1.lib;shaderc.lib;OSDependent.lib;MachineIndependent.lib;VkLayer_utils.lib;SPIRV.lib;shaderc_util.lib;shaderc_shared.lib;OGLCompiler.lib;SPIRV-Tools.lib;glslang.lib;HLSL.lib;glfw3.lib;tinyobjloader.lib;d3d12.lib;dxgi.lib;d3dcompiler.lib;dxguid.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <IgnoreAllDefaultLibraries>false</IgnoreAllDefaultLibraries>
       <IgnoreSpecificDefaultLibraries>MSVCRT.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
       <UACExecutionLevel>AsInvoker</UACExecutionLevel>
@@ -178,7 +178,7 @@
       <GenerateDebugInformation>false</GenerateDebugInformation>
       <SubSystem>Console</SubSystem>
       <AdditionalLibraryDirectories>C:\VulkanSDK\1.2.154.1\Lib;C:\Work\thirdparty\glfw-3.3.2.bin.WIN64\lib-vc2017;ThirdParty\tinyobjloader\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>vulkan-1.lib;shaderc.lib;glfw3.lib;tinyobjloader.lib;D3d12.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>vulkan-1.lib;shaderc.lib;glfw3.lib;tinyobjloader.lib;d3d12.lib;dxgi.lib;d3dcompiler.lib;dxguid.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <IgnoreAllDefaultLibraries>false</IgnoreAllDefaultLibraries>
       <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
       <UACExecutionLevel>AsInvoker</UACExecutionLevel>
