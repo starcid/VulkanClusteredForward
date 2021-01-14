@@ -1903,30 +1903,36 @@ void VulkanRenderer::UploadMeshlets(VkDescriptorBufferInfo* meshletBufInfo, VkDe
 {
 	std::array<VkWriteDescriptorSet, 2> descriptorWrites = {};
 
-	/// meshlets
-	descriptorWrites[0] = {};
-	descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-	descriptorWrites[0].pNext = NULL;
-	descriptorWrites[0].dstSet = descSets[active_command_buffer_idx];
-	descriptorWrites[0].descriptorCount = 1;
-	descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-	descriptorWrites[0].pBufferInfo = meshletBufInfo;
-	descriptorWrites[0].dstArrayElement = 0;
-	descriptorWrites[0].dstBinding = 0;
+	for (int i = 0; i < 3; i++)
+	{
+		/// meshlets
+		descriptorWrites[0] = {};
+		descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		descriptorWrites[0].pNext = NULL;
+		descriptorWrites[0].dstSet = descSets[i];
+		descriptorWrites[0].descriptorCount = 1;
+		descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+		descriptorWrites[0].pBufferInfo = meshletBufInfo;
+		descriptorWrites[0].dstArrayElement = 0;
+		descriptorWrites[0].dstBinding = 0;
 
-	/// vertex buffer
-	descriptorWrites[1] = {};
-	descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-	descriptorWrites[1].pNext = NULL;
-	descriptorWrites[1].dstSet = descSets[active_command_buffer_idx];
-	descriptorWrites[1].descriptorCount = 1;
-	descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-	descriptorWrites[1].pBufferInfo = vertexBufInfo;
-	descriptorWrites[1].dstArrayElement = 0;
-	descriptorWrites[1].dstBinding = 1;
-	
-	vkUpdateDescriptorSets(device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, NULL);
+		/// vertex buffer
+		descriptorWrites[1] = {};
+		descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		descriptorWrites[1].pNext = NULL;
+		descriptorWrites[1].dstSet = descSets[i];
+		descriptorWrites[1].descriptorCount = 1;
+		descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+		descriptorWrites[1].pBufferInfo = vertexBufInfo;
+		descriptorWrites[1].dstArrayElement = 0;
+		descriptorWrites[1].dstBinding = 1;
 
+		vkUpdateDescriptorSets(device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, NULL);
+	}
+}
+
+void VulkanRenderer::BindMeshlets(VkDescriptorSet* descSets)
+{
 	vkCmdBindDescriptorSets(command_buffers[active_command_buffer_idx], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_layout, 1, 1, &descSets[active_command_buffer_idx], 0, nullptr);
 }
 

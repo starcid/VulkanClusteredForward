@@ -180,6 +180,7 @@ public:
 
 	void AllocateMeshletDescriptorSets(VkDescriptorSet* descSets);
 	void UploadMeshlets(VkDescriptorBufferInfo* meshletBufInfo, VkDescriptorBufferInfo* vertexBufInfo, VkDescriptorSet* descSets);
+	void BindMeshlets(VkDescriptorSet* descSets);
 	void FreeMeshletDescriptorSets(VkDescriptorSet* descSets);
 
 	void CopyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);

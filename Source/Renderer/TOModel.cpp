@@ -160,7 +160,8 @@ void TOModel::Draw()
 			}
 			else
 			{
-				vRenderer->UploadMeshlets(&meshlet_buffer_infos[i], &vertex_storage_buffer_infos[i], desc_sets_data[i]);
+				///vRenderer->UploadMeshlets(&meshlet_buffer_infos[i], &vertex_storage_buffer_infos[i], desc_sets_data[i]);
+				vRenderer->BindMeshlets(desc_sets_data[i]);
 
 				uint32_t count = meshlet_nums[i];
 				const uint32_t max_count = vRenderer->GetMaxDrawMeshTaskCount();
@@ -245,6 +246,9 @@ void TOModel::GenerateMeshlets(void* vtxData, int vtxNum)
 	VkDescriptorSet* desc_sets = new VkDescriptorSet[3];
 	vRenderer->AllocateMeshletDescriptorSets(desc_sets);
 	desc_sets_data.push_back(desc_sets);
+
+	/// upload mesh let here
+	vRenderer->UploadMeshlets(&meshlet_buffer_info, &vertex_storage_buffer_info, desc_sets);
 }
 
 bool TOModel::LoadFromPath(std::string path)
