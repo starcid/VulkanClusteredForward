@@ -13,6 +13,9 @@ class Camera;
 class Renderer
 {
 public:
+	const int MAX_MATERIAL_NUM = 50;
+	const int MAX_MODEL_NUM = 1000;
+
 	Renderer(GLFWwindow* win) : window(win) { glfwGetWindowSize(win, &winWidth, &winHeight); camera = NULL; }
 	virtual ~Renderer() {}
 

@@ -144,6 +144,9 @@
     <ClInclude Include="Source\Renderer\DRenderer.h">
       <Filter>Source\Renderer</Filter>
     </ClInclude>
+    <ClInclude Include="Source\Renderer\d3dx12.h">
+      <Filter>Source\Renderer</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Object Include="Source\Ispc\cluste_culling_ispc_avx512knl.obj">

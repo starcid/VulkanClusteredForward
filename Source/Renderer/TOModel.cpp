@@ -160,7 +160,6 @@ void TOModel::Draw()
 			}
 			else
 			{
-				///vRenderer->UploadMeshlets(&meshlet_buffer_infos[i], &vertex_storage_buffer_infos[i], desc_sets_data[i]);
 				vRenderer->BindMeshlets(desc_sets_data[i]);
 
 				uint32_t count = meshlet_nums[i];

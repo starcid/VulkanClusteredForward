@@ -133,8 +133,6 @@ class Material;
 class PointLight;
 class VulkanRenderer : public Renderer
 {
-	const int MAX_MATERIAL_NUM = 50;
-	const int MAX_MODEL_NUM = 1000;
 public:
 	VulkanRenderer(GLFWwindow* win);
 	virtual ~VulkanRenderer();

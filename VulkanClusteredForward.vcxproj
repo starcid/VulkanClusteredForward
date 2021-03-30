@@ -221,6 +221,7 @@
     <ClInclude Include="Source\Ispc\cluste_culling_ispc_sse4.h" />
     <ClInclude Include="Source\Renderer\Camera.h" />
     <ClInclude Include="Source\Renderer\ClusteCulling.h" />
+    <ClInclude Include="Source\Renderer\d3dx12.h" />
     <ClInclude Include="Source\Renderer\DRenderer.h" />
     <ClInclude Include="Source\Renderer\extensions_vk.hpp" />
     <ClInclude Include="Source\Renderer\Light.h" />

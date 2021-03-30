@@ -23,14 +23,27 @@
 #include <D3Dcompiler.h>
 #include <DirectXMath.h>
 
+#include <string>
 #include <wrl.h>
 #include <process.h>
 #include <shellapi.h>
 #include <stdexcept>
 
+#include "d3dx12.h"	// help structure
+
 using namespace DirectX;
 using namespace Microsoft::WRL;
 using Microsoft::WRL::ComPtr;
+
+/// one buffers(simple first)
+struct Vertex {
+	glm::vec4 pos;
+	glm::vec3 color;
+	glm::vec3 texcoord;
+	glm::vec3 normal;
+	glm::vec3 tangent;
+	glm::vec3 bitangent;
+};
 
 class D12Renderer : public Renderer
 {
@@ -54,6 +67,18 @@ private:
 
 	ComPtr<ID3D12CommandQueue> m_graphicsQueue;
 	ComPtr<ID3D12CommandQueue> m_computeQueue;
+
+	ComPtr<ID3D12DescriptorHeap> m_rtvHeap;
+	ComPtr<ID3D12DescriptorHeap> m_dsvHeap;
+	ComPtr<ID3D12DescriptorHeap> m_cbvSrvHeap;
+	ComPtr<ID3D12DescriptorHeap> m_samplerHeap;
+	ComPtr<ID3D12CommandAllocator> m_commandAllocator;
+	ComPtr<ID3D12RootSignature> m_rootSignature;
+	ComPtr<ID3D12PipelineState> m_pipelineState;
+	ComPtr<ID3D12PipelineState> m_pipelineStateShadowMap;
+
+	int m_rtvDescriptorSize;
+	int m_frameIndex;
 };
 
 #endif // !__D12_RENDERER_H__
