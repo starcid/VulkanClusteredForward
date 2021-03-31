@@ -17,9 +17,6 @@
 #define __ISPC_STRUCT_LightGrid__
 #include "Ispc/cluste_culling_ispc.h"
 
-#undef max
-#undef min
-
 static ispc::PointLightDataISPC* pointLightISPCDatas = NULL;
 
 #ifdef NDEBUG

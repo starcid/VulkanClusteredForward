@@ -73,7 +73,6 @@ D12Renderer::D12Renderer(GLFWwindow* win)
 {
 	HWND hwnd = glfwGetWin32Window(win);
     UINT dxgiFactoryFlags = 0;
-    int frameCount = 3;
 
 #if defined(_DEBUG)
     // Enable the debug layer (requires the Graphics Tools "optional feature").
@@ -303,6 +302,55 @@ D12Renderer::D12Renderer(GLFWwindow* win)
 
         ThrowIfFailed(m_device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&m_pipelineStateShadowMap)));
         NAME_D3D12_OBJECT(m_pipelineStateShadowMap);
+    }
+
+    // Create temporary command list for initial GPU setup.
+    ThrowIfFailed(m_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_commandAllocator.Get(), m_pipelineState.Get(), IID_PPV_ARGS(&m_commandList)));
+
+    // Create render target views (RTVs).
+    CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart());
+    for (UINT i = 0; i < frameCount; i++)
+    {
+        ThrowIfFailed(m_swapChain->GetBuffer(i, IID_PPV_ARGS(&m_renderTargets[i])));
+        m_device->CreateRenderTargetView(m_renderTargets[i].Get(), nullptr, rtvHandle);
+        rtvHandle.Offset(1, m_rtvDescriptorSize);
+
+        NAME_D3D12_OBJECT_INDEXED(m_renderTargets, i);
+    }
+
+    // Create the depth stencil.
+    {
+        CD3DX12_RESOURCE_DESC shadowTextureDesc(
+            D3D12_RESOURCE_DIMENSION_TEXTURE2D,
+            0,
+            static_cast<UINT>(m_viewport.Width),
+            static_cast<UINT>(m_viewport.Height),
+            1,
+            1,
+            DXGI_FORMAT_D32_FLOAT,
+            1,
+            0,
+            D3D12_TEXTURE_LAYOUT_UNKNOWN,
+            D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL | D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE);
+
+        D3D12_CLEAR_VALUE clearValue;    // Performance tip: Tell the runtime at resource creation the desired clear value.
+        clearValue.Format = DXGI_FORMAT_D32_FLOAT;
+        clearValue.DepthStencil.Depth = 1.0f;
+        clearValue.DepthStencil.Stencil = 0;
+
+        CD3DX12_HEAP_PROPERTIES heapProps(D3D12_HEAP_TYPE_DEFAULT);
+        ThrowIfFailed(m_device->CreateCommittedResource(
+            &heapProps,
+            D3D12_HEAP_FLAG_NONE,
+            &shadowTextureDesc,
+            D3D12_RESOURCE_STATE_DEPTH_WRITE,
+            &clearValue,
+            IID_PPV_ARGS(&m_depthStencil)));
+
+        NAME_D3D12_OBJECT(m_depthStencil);
+
+        // Create the depth stencil view.
+        m_device->CreateDepthStencilView(m_depthStencil.Get(), nullptr, m_dsvHeap->GetCPUDescriptorHandleForHeapStart());
     }
 }
 

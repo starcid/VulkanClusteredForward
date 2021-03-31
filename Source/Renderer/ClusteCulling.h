@@ -103,8 +103,8 @@ namespace RawCpu
 					glm::vec3 maxPointNear = lineIntersectionToZPlane(eyePos, maxPoint_vS, tileNear);
 					glm::vec3 maxPointFar = lineIntersectionToZPlane(eyePos, maxPoint_vS, tileFar);
 
-					glm::vec3 minPointAABB = min(min(minPointNear, minPointFar), min(maxPointNear, maxPointFar));
-					glm::vec3 maxPointAABB = max(max(minPointNear, minPointFar), max(maxPointNear, maxPointFar));
+					glm::vec3 minPointAABB = glm::min<3, float>(glm::min<3, float>(minPointNear, minPointFar), glm::min<3, float>(maxPointNear, maxPointFar));
+					glm::vec3 maxPointAABB = glm::max<3, float>(glm::max<3, float>(minPointNear, minPointFar), glm::max<3, float>(maxPointNear, maxPointFar));
 
 					glm::uint visibleLightIndices[100];
 					glm::uint visibleLightCount = 0;

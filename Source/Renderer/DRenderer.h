@@ -35,18 +35,9 @@ using namespace DirectX;
 using namespace Microsoft::WRL;
 using Microsoft::WRL::ComPtr;
 
-/// one buffers(simple first)
-struct Vertex {
-	glm::vec4 pos;
-	glm::vec3 color;
-	glm::vec3 texcoord;
-	glm::vec3 normal;
-	glm::vec3 tangent;
-	glm::vec3 bitangent;
-};
-
 class D12Renderer : public Renderer
 {
+	static const UINT frameCount = 3;
 public:
 	D12Renderer(GLFWwindow* win);
 	virtual ~D12Renderer();
@@ -76,6 +67,12 @@ private:
 	ComPtr<ID3D12RootSignature> m_rootSignature;
 	ComPtr<ID3D12PipelineState> m_pipelineState;
 	ComPtr<ID3D12PipelineState> m_pipelineStateShadowMap;
+	ComPtr<ID3D12Resource> m_renderTargets[frameCount];
+	ComPtr<ID3D12Resource> m_depthStencil;
+	ComPtr<ID3D12GraphicsCommandList> m_commandList;
+
+	CD3DX12_VIEWPORT m_viewport;
+	CD3DX12_RECT m_scissorRect;
 
 	int m_rtvDescriptorSize;
 	int m_frameIndex;
