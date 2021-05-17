@@ -12,6 +12,7 @@
 #include "extensions_vk.hpp"
 
 #include "ClusteCulling.h"
+#include "GeoDataVK.h"
 
 /// prevent multi-define
 #define __ISPC_STRUCT_LightGrid__
@@ -2450,6 +2451,100 @@ void VulkanRenderer::Flush()
 void VulkanRenderer::WaitIdle()
 {
 	vkDeviceWaitIdle(device);
+}
+
+GeoData* VulkanRenderer::CreateGeoData()
+{
+	return new GeoDataVK(this);
+}
+
+void VulkanRenderer::Draw(GeoData* geoData, std::vector<Material*>& mats)
+{
+	VulkanRenderer* vRenderer = this;
+	VkCommandBuffer cb = vRenderer->CurrentCommandBuffer();
+	GeoDataVK* data = (GeoDataVK*)geoData;
+
+	/// prepare materials
+	for (int i = 0; i < mats.size(); i++)
+	{
+		mats[i]->PrepareToDraw();
+	}
+
+	/// use index buffer
+	if (data->index_buffers.size() > 0)
+	{
+		for (int i = 0; i < data->vertex_buffers.size(); i++)
+		{
+			VkBuffer vertexBuffers[] = { data->vertex_buffers[i] };
+			VkDeviceSize offsets[] = { 0 };
+			vkCmdBindVertexBuffers(cb, i, 1, vertexBuffers, offsets);
+		}
+		for (int i = 0; i < data->index_buffers.size(); i++)
+		{
+			if (data->mat_ids.size() > i && data->mat_ids[i] >= 0 && mats.size() > data->mat_ids[i] && mats[data->mat_ids[i]] != NULL)
+			{
+				/// material
+				Material* mat = mats[data->mat_ids[i]];
+				vRenderer->SetTexture(mat->GetDiffuseTexture());
+				vRenderer->SetNormalTexture(mat->GetNormalTexture());
+				vRenderer->UpdateMaterial(mat);
+			}
+			vkCmdBindIndexBuffer(cb, data->index_buffers[i], 0, VK_INDEX_TYPE_UINT16);
+			vkCmdDrawIndexed(cb, data->indices_counts[i], 1, 0, 0, 0);
+		}
+	}
+	else
+	{
+		for (int i = 0; i < data->vertex_buffers.size(); i++)
+		{
+			if (data->mat_ids.size() > i && data->mat_ids[i] >= 0 && mats.size() > data->mat_ids[i] && mats[data->mat_ids[i]] != NULL)
+			{
+				/// material
+				Material* mat = mats[data->mat_ids[i]];
+				vRenderer->SetTexture(mat->GetDiffuseTexture());
+				vRenderer->SetNormalTexture(mat->GetNormalTexture());
+				vRenderer->UpdateMaterial(mat);
+			}
+			if (!vRenderer->IsMeshShading())
+			{
+				VkBuffer vertexBuffers[] = { data->vertex_buffers[i] };
+				VkDeviceSize offsets[] = { 0 };
+				vkCmdBindVertexBuffers(cb, 0, 1, vertexBuffers, offsets);
+				vkCmdDraw(cb, data->indices_counts[i], 1, 0, 0);
+			}
+			else
+			{
+				vRenderer->BindMeshlets(data->desc_sets_data[i]);
+
+				uint32_t count = data->meshlet_nums[i];
+				const uint32_t max_count = vRenderer->GetMaxDrawMeshTaskCount();
+				uint32_t start = 0;
+				while (count > max_count)
+				{
+					vkCmdDrawMeshTasksNV(cb, max_count, start);
+					start += max_count;
+					count -= max_count;
+				}
+				vkCmdDrawMeshTasksNV(cb, count, start);
+			}
+		}
+	}
+}
+
+void VulkanRenderer::UpdateCameraMatrix()
+{
+	SetViewMatrix(*camera->GetViewMatrix());
+	SetProjMatrix(*camera->GetProjectMatrix());
+	SetProjViewMatrix(*camera->GetViewProjectMatrix());
+	SetCamPos(camera->GetPosition());
+}
+
+void VulkanRenderer::UpdateTransformMatrix(TransformEntity* transform)
+{
+	glm::mat4x4* modelViewMatrix = transform->UpdateMatrix();
+	glm::mat4x4 mvp = (*camera->GetViewProjectMatrix()) * (*modelViewMatrix);
+	SetMvpMatrix(mvp);
+	SetModelMatrix(*modelViewMatrix);
 }
 
 void VulkanRenderer::OnSceneExit()

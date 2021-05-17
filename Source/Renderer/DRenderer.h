@@ -35,6 +35,7 @@ using namespace DirectX;
 using namespace Microsoft::WRL;
 using Microsoft::WRL::ComPtr;
 
+class GeoData;
 class D12Renderer : public Renderer
 {
 	static const UINT frameCount = 3;
@@ -47,7 +48,15 @@ public:
 	virtual void Flush();
 	virtual void WaitIdle();
 
+	virtual GeoData* CreateGeoData();
+	virtual void Draw(GeoData* geoData, std::vector<Material*>& mats);
+
+	virtual void UpdateCameraMatrix();
+	virtual void UpdateTransformMatrix(TransformEntity* transform);
+
 	virtual void OnSceneExit();
+
+	void CreateVertexBuffer(void* vdata, uint32_t single, uint32_t length, ComPtr<ID3D12Resource>& vtxbuf);
 
 private:
 	void GetHardwareAdapter(_In_ IDXGIFactory1* pFactory, _Outptr_result_maybenull_ IDXGIAdapter1** ppAdapter, bool requestHighPerformanceAdapter = false);

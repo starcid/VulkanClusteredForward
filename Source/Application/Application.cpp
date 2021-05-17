@@ -5,6 +5,7 @@
 #include "Application.h"
 #include "Scene/Scene.h"
 #include "Renderer/VRenderer.h"
+#include "Renderer/DRenderer.h"
 #include "Renderer/Camera.h"
 #include "Common/Utils.h"
 
@@ -104,6 +105,7 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 void Application::CreateRenderer(GLFWwindow* window)
 {
 	current_window = window;
+	///D12Renderer* dRenderer = new D12Renderer(window);
 	VulkanRenderer* vRenderer = new VulkanRenderer(window);
 	renderer = vRenderer;
 
@@ -252,6 +254,7 @@ void Application::SceneRender()
 
 	if (update_scene)
 	{
+		renderer->UpdateCameraMatrix();
 		current_scene->OnRender(renderer);
 	}
 

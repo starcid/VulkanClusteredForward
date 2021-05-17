@@ -8,6 +8,11 @@
 #include <glm/vec4.hpp>
 #include <glm/mat4x4.hpp>
 
+#define GLFW_INCLUDE_VULKAN
+#define GLFW_EXPOSE_NATIVE_WIN32
+#include <GLFW/glfw3.h>
+#include <GLFW/glfw3native.h>
+
 #define MAX_LIGHT_NUM 16
 #define CLUSTE_X 16
 #define CLUSTE_Y 9
@@ -109,6 +114,9 @@ struct LightGrid {
 
 class Model;
 class Camera;
+class GeoData;
+class TransformEntity;
+class Material;
 class Renderer
 {
 public:
@@ -122,6 +130,12 @@ public:
 	virtual void RenderEnd() = 0;
 	virtual void Flush() = 0;
 	virtual void WaitIdle() = 0;
+
+	virtual GeoData* CreateGeoData() = 0;
+	virtual void Draw(GeoData* geoData, std::vector<Material*>& mats) = 0;
+
+	virtual void UpdateCameraMatrix() = 0;
+	virtual void UpdateTransformMatrix(TransformEntity* transform) = 0;
 
 	virtual void OnSceneExit() = 0;
 

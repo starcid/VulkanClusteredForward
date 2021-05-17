@@ -6,11 +6,6 @@
 #include <array>
 #include <optional>
 
-#define GLFW_INCLUDE_VULKAN
-#define GLFW_EXPOSE_NATIVE_WIN32
-#include <GLFW/glfw3.h>
-#include <GLFW/glfw3native.h>
-
 #include "Renderer.h"
 
 struct SwapChainSupportDetails {
@@ -42,6 +37,12 @@ public:
 	virtual void RenderEnd();
 	virtual void Flush();
 	virtual void WaitIdle();
+
+	virtual GeoData* CreateGeoData();
+	virtual void Draw(GeoData* geoData, std::vector<Material*>& mats);
+
+	virtual void UpdateCameraMatrix();
+	virtual void UpdateTransformMatrix(TransformEntity* transform);
 
 	virtual void OnSceneExit();
 

@@ -8,6 +8,7 @@
 #include "DRenderer.h"
 
 #include "ClusteCulling.h"
+#include "GeoDataDX12.h"
 
 inline std::string HrToString(HRESULT hr)
 {
@@ -379,6 +380,26 @@ void D12Renderer::WaitIdle()
 	
 }
 
+GeoData* D12Renderer::CreateGeoData()
+{
+    return new GeoDataDX12(this);
+}
+
+void D12Renderer::Draw(GeoData* geoData, std::vector<Material*>& mats)
+{
+    
+}
+
+void D12Renderer::UpdateCameraMatrix()
+{
+    
+}
+
+void D12Renderer::UpdateTransformMatrix(TransformEntity* transform)
+{
+    
+}
+
 void D12Renderer::OnSceneExit()
 {
 	
@@ -446,4 +467,30 @@ void D12Renderer::GetHardwareAdapter(IDXGIFactory1* pFactory, IDXGIAdapter1** pp
     }
 
     *ppAdapter = adapter.Detach();
+}
+
+void D12Renderer::CreateVertexBuffer(void* vdata, uint32_t single, uint32_t length, ComPtr<ID3D12Resource>& vtxbuf)
+{
+    const UINT vertexBufferSize = single * length;
+
+    // Note: using upload heaps to transfer static data like vert buffers is not 
+    // recommended. Every time the GPU needs it, the upload heap will be marshalled 
+    // over. Please read up on Default Heap usage. An upload heap is used here for 
+    // code simplicity and because there are very few verts to actually transfer.
+    CD3DX12_HEAP_PROPERTIES heapProps(D3D12_HEAP_TYPE_UPLOAD);
+    auto desc = CD3DX12_RESOURCE_DESC::Buffer(vertexBufferSize);
+    ThrowIfFailed(m_device->CreateCommittedResource(
+        &heapProps,
+        D3D12_HEAP_FLAG_NONE,
+        &desc,
+        D3D12_RESOURCE_STATE_GENERIC_READ,
+        nullptr,
+        IID_PPV_ARGS(&vtxbuf)));
+
+    // Copy the triangle data to the vertex buffer.
+    UINT8* pVertexDataBegin;
+    CD3DX12_RANGE readRange(0, 0);        // We do not intend to read from this resource on the CPU.
+    ThrowIfFailed(vtxbuf->Map(0, &readRange, reinterpret_cast<void**>(&pVertexDataBegin)));
+    memcpy(pVertexDataBegin, vdata, vertexBufferSize);
+    vtxbuf->Unmap(0, nullptr);
 }
