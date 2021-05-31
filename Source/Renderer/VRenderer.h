@@ -71,6 +71,7 @@ public:
 	void SetProjMatrix(glm::mat4x4& mtx);
 	void SetProjViewMatrix(glm::mat4x4& mtx);
 	void SetCamPos(glm::vec3& pos);
+	void SetLightPos(glm::vec4& pos, int idx);
 	void SetTexture(Texture* tex);
 	void SetNormalTexture(Texture* tex);
 

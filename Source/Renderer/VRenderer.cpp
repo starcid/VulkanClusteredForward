@@ -1979,6 +1979,12 @@ void VulkanRenderer::SetCamPos(glm::vec3& pos)
 	transData->isClusteShading = isClusteShading;
 }
 
+void VulkanRenderer::SetLightPos(glm::vec4& pos, int idx)
+{
+	TransformData* transData = (TransformData*)transform_uniform_buffer_data;
+	memcpy(&transData->light_pos[idx], &pos, sizeof(glm::vec4));
+}
+
 void VulkanRenderer::SetTexture(Texture* tex)
 {
 	if (tex != NULL)
@@ -2538,7 +2544,6 @@ void VulkanRenderer::UpdateCameraMatrix()
 	SetViewMatrix(*camera->GetViewMatrix());
 	SetProjMatrix(*camera->GetProjectMatrix());
 	SetProjViewMatrix(*camera->GetViewProjectMatrix());
-	SetCamPos(camera->GetPosition());
 }
 
 void VulkanRenderer::UpdateTransformMatrix(TransformEntity* transform)
@@ -2547,6 +2552,18 @@ void VulkanRenderer::UpdateTransformMatrix(TransformEntity* transform)
 	glm::mat4x4 mvp = (*camera->GetViewProjectMatrix()) * (*modelViewMatrix);
 	SetMvpMatrix(mvp);
 	SetModelMatrix(*modelViewMatrix);
+
+	glm::mat4 world_model = glm::inverse(*modelViewMatrix);
+	glm::vec3 cam_pos = camera->GetPosition();
+	glm::vec4 cam_pos_obj = glm::vec4(cam_pos.x, cam_pos.y, cam_pos.z, 1.0f) * world_model;
+	glm::vec3 cam_pos_obj3 = glm::vec3(cam_pos_obj.x, cam_pos_obj.y, cam_pos_obj.z);
+	SetCamPos(cam_pos_obj3);
+
+	for (int i = 0; i < light_infos.size(); i++)
+	{
+		glm::vec4 light_pos_obj = glm::vec4(light_infos[i].pos.x, light_infos[i].pos.y, light_infos[i].pos.z, 1.0f) * world_model;
+		SetLightPos(light_pos_obj, i);
+	}
 }
 
 void VulkanRenderer::OnSceneExit()

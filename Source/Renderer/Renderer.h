@@ -59,13 +59,14 @@ struct TransformData {
 	glm::mat4x4 view;
 	glm::mat4x4 proj;
 	glm::mat4x4 proj_view;
-	glm::vec3 cam_pos;
+	glm::vec3 cam_pos;	/// obj space
 	bool isClusteShading;
 	glm::uvec4 tileSizes;
 	float zNear;
 	float zFar;
 	float scale;
 	float bias;
+	glm::vec4 light_pos[MAX_LIGHT_NUM];	/// obj_space
 };
 
 /// material flag for shader

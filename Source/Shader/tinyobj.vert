@@ -14,6 +14,7 @@ layout (std140, binding = 0, set = 0) uniform TransformData {
     float zFar;
     float scale;
     float bias;
+    vec4 light_pos[MAX_LIGHT_NUM];
 } transform;
 
 layout(std140, binding = 1, set = 0) uniform MaterialData
@@ -49,7 +50,6 @@ layout (location = 0) out Interpolants {
     vec3 fragTexCoord;
     vec3 fragPos;
     vec3 tanViewPos;
-    vec3 tanFragPos;
     vec3 tanLightPos[16];
 } OUT;
 
@@ -59,15 +59,12 @@ void main() {
     OUT.fragTexCoord = inTexcoord;
     OUT.fragPos = vec3(transform.model * inPosition);
 
-    mat3 normalMatrix = transpose(inverse(mat3(transform.model))); /// maybe have scale
-    vec3 T = normalize(vec3(normalMatrix * inTangent));
-    vec3 N = normalize(vec3(normalMatrix * inNormal));
-    T = normalize(T - dot(T, N) * N);
-    vec3 B = cross(N, T);
-    mat3 TBN = mat3(T, B, N);
-    TBN = transpose(TBN);
+    vec3 bitangent = cross(inNormal, inTangent);
+	vec3 v =  transform.cam_pos - vec3(inPosition);
+    OUT.tanViewPos  = vec3(dot(inTangent, v), dot(bitangent, v), dot(inNormal, v));
     for(int i = 0; i < MAX_LIGHT_NUM; i++)
-        OUT.tanLightPos[i] = TBN * pointLight[i].pos;
-    OUT.tanViewPos  = TBN * transform.cam_pos;
-    OUT.tanFragPos  = TBN * OUT.fragPos;
+    {
+        vec3 l = vec3(transform.light_pos[i] - inPosition);
+        OUT.tanLightPos[i] = vec3(dot(inTangent, l), dot(bitangent, l), dot(inNormal, l));
+    }
 }

@@ -20,6 +20,7 @@ layout (std140, binding = 0, set = 0) uniform TransformData {
     float zFar;
     float scale;
     float bias;
+    vec4 light_pos[MAX_LIGHT_NUM];
 } transform;
 
 layout(std140, binding = 1, set = 0) uniform MaterialData
@@ -58,7 +59,6 @@ layout (location = 0) in Interpolants {
     vec3 fragTexCoord;
     vec3 fragPos;
     vec3 tanViewPos;
-    vec3 tanFragPos;
     vec3 tanLightPos[16];
 } IN;
 
@@ -132,11 +132,11 @@ vec3 lightingColor(uint i)
         normal = vec3(0, 0, 1);
     }
     // diffuse
-    vec3 lightDir = normalize(IN.tanLightPos[i] - IN.tanFragPos);
+    vec3 lightDir = normalize(IN.tanLightPos[i]);
     float lambertian = max(dot(lightDir, normal), 0.0);
     vec3 diffuse = pointLight[i].diffuse_intensity * albedo * lambertian * pointLight[i].color;
     // specular
-    vec3 viewDir  = normalize(IN.tanViewPos - IN.tanFragPos);
+    vec3 viewDir  = normalize(IN.tanViewPos);
     vec3 halfDir = normalize(lightDir + viewDir);
     float specAngle = max(dot(halfDir, normal), 0.0);
     float spec = pow(specAngle, 32);
