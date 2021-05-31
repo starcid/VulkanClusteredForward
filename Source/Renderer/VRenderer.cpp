@@ -18,6 +18,8 @@
 #define __ISPC_STRUCT_LightGrid__
 #include "Ispc/cluste_culling_ispc.h"
 
+#define VERTEX_BUFFER_BIND_ID 0
+
 static ispc::PointLightDataISPC* pointLightISPCDatas = NULL;
 
 #ifdef NDEBUG
@@ -787,7 +789,7 @@ std::array<VkVertexInputBindingDescription, 1> VulkanRenderer::GetBindingDescrip
 {
 	std::array<VkVertexInputBindingDescription, 1> bindingDescriptions = {};
 
-	bindingDescriptions[0].binding = 0;
+	bindingDescriptions[0].binding = VERTEX_BUFFER_BIND_ID;
 	bindingDescriptions[0].stride = sizeof(Vertex);
 	bindingDescriptions[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 
@@ -798,32 +800,32 @@ std::array<VkVertexInputAttributeDescription, 6> VulkanRenderer::GetAttributeDes
 {
 	std::array<VkVertexInputAttributeDescription, 6> attributeDescriptions = {};
 
-	attributeDescriptions[0].binding = 0;
+	attributeDescriptions[0].binding = VERTEX_BUFFER_BIND_ID;
 	attributeDescriptions[0].location = 0;
 	attributeDescriptions[0].format = VK_FORMAT_R32G32B32A32_SFLOAT;
 	attributeDescriptions[0].offset = offsetof(Vertex, pos);
 
-	attributeDescriptions[1].binding = 0;
+	attributeDescriptions[1].binding = VERTEX_BUFFER_BIND_ID;
 	attributeDescriptions[1].location = 1;
 	attributeDescriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
 	attributeDescriptions[1].offset = offsetof(Vertex, color);
 
-	attributeDescriptions[2].binding = 0;
+	attributeDescriptions[2].binding = VERTEX_BUFFER_BIND_ID;
 	attributeDescriptions[2].location = 2;
 	attributeDescriptions[2].format = VK_FORMAT_R32G32B32_SFLOAT;
 	attributeDescriptions[2].offset = offsetof(Vertex, texcoord);
 
-	attributeDescriptions[3].binding = 0;
+	attributeDescriptions[3].binding = VERTEX_BUFFER_BIND_ID;
 	attributeDescriptions[3].location = 3;
 	attributeDescriptions[3].format = VK_FORMAT_R32G32B32_SFLOAT;
 	attributeDescriptions[3].offset = offsetof(Vertex, normal);
 
-	attributeDescriptions[4].binding = 0;
+	attributeDescriptions[4].binding = VERTEX_BUFFER_BIND_ID;
 	attributeDescriptions[4].location = 4;
 	attributeDescriptions[4].format = VK_FORMAT_R32G32B32_SFLOAT;
 	attributeDescriptions[4].offset = offsetof(Vertex, tangent);
 
-	attributeDescriptions[5].binding = 0;
+	attributeDescriptions[5].binding = VERTEX_BUFFER_BIND_ID;
 	attributeDescriptions[5].location = 5;
 	attributeDescriptions[5].format = VK_FORMAT_R32G32B32_SFLOAT;
 	attributeDescriptions[5].offset = offsetof(Vertex, bitangent);
@@ -2477,7 +2479,7 @@ void VulkanRenderer::Draw(GeoData* geoData, std::vector<Material*>& mats)
 		{
 			VkBuffer vertexBuffers[] = { data->vertex_buffers[i] };
 			VkDeviceSize offsets[] = { 0 };
-			vkCmdBindVertexBuffers(cb, i, 1, vertexBuffers, offsets);
+			vkCmdBindVertexBuffers(cb, VERTEX_BUFFER_BIND_ID, 1, vertexBuffers, offsets);
 		}
 		for (int i = 0; i < data->index_buffers.size(); i++)
 		{
@@ -2509,7 +2511,7 @@ void VulkanRenderer::Draw(GeoData* geoData, std::vector<Material*>& mats)
 			{
 				VkBuffer vertexBuffers[] = { data->vertex_buffers[i] };
 				VkDeviceSize offsets[] = { 0 };
-				vkCmdBindVertexBuffers(cb, 0, 1, vertexBuffers, offsets);
+				vkCmdBindVertexBuffers(cb, VERTEX_BUFFER_BIND_ID, 1, vertexBuffers, offsets);
 				vkCmdDraw(cb, data->indices_counts[i], 1, 0, 0);
 			}
 			else

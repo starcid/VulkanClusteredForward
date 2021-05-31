@@ -110,6 +110,55 @@ void GeoDataVK::initTinyObjData(tinyobj::attrib_t& attrib, std::vector<tinyobj::
 		subMeshMatIds.push_back(matId);
 		subMeshTriIdxs.push_back((int)mesh->material_ids.size());
 
+		/// mesh data
+		/*MeshData meshData;
+		int totalVtxCount = attrib.vertices.size() / 3;
+		Vertex* vertices = new Vertex[totalVtxCount];
+		for (int j = 0; j < totalVtxCount; j++)
+		{
+			memcpy(&vertices[j].pos, &attrib.vertices[j * 3], sizeof(float) * 3);
+			vertices[j].pos.w = 1.0f;
+			if (hasWeight)
+				vertices[j].pos.w = attrib.vertex_weights[j];
+			memcpy(&vertices[j].color, &attrib.colors[j * 3], sizeof(float) * 3);
+			vertices[j].texcoord.x = attrib.texcoords[j * 2 + 0];
+			vertices[j].texcoord.y = 1.0f - attrib.texcoords[j * 2 + 1];
+			if (hasWs)
+				vertices[j].texcoord.z = attrib.texcoord_ws[j];
+			memcpy(&vertices[j].normal, &attrib.normals[j * 3], sizeof(float) * 3);
+			if ((j % 3) == 2)
+			{
+				glm::vec4& v0 = vertices[j - 2].pos;
+				glm::vec4& v1 = vertices[j - 1].pos;
+				glm::vec4& v2 = vertices[j].pos;
+
+				// Shortcuts for UVs
+				glm::vec3& uv0 = vertices[j - 2].texcoord;
+				glm::vec3& uv1 = vertices[j - 1].texcoord;
+				glm::vec3& uv2 = vertices[j].texcoord;
+
+				// Edges of the triangle : position delta
+				glm::vec3 deltaPos1 = v1 - v0;
+				glm::vec3 deltaPos2 = v2 - v0;
+
+				// UV delta
+				glm::vec2 deltaUV1 = uv1 - uv0;
+				glm::vec2 deltaUV2 = uv2 - uv0;
+
+				float r = 1.0f / (deltaUV1.x * deltaUV2.y - deltaUV1.y * deltaUV2.x);
+				glm::vec3 tangent = glm::normalize((deltaPos1 * deltaUV2.y - deltaPos2 * deltaUV1.y) * r);
+				glm::vec3 bitangent = glm::normalize((deltaPos2 * deltaUV1.x - deltaPos1 * deltaUV2.x) * r);
+
+				vertices[j - 2].tangent = tangent;
+				vertices[j - 1].tangent = tangent;
+				vertices[j].tangent = tangent;
+
+				vertices[j - 2].bitangent = bitangent;
+				vertices[j - 1].bitangent = bitangent;
+				vertices[j].bitangent = bitangent;
+			}
+		}*/
+
 		/// sub mesh vb
 		int startVtxIdx = 0;
 		for (int k = 0; k < subMeshMatIds.size(); k++)
@@ -173,6 +222,20 @@ void GeoDataVK::initTinyObjData(tinyobj::attrib_t& attrib, std::vector<tinyobj::
 					vertices[j - 2].bitangent = bitangent;
 					vertices[j - 1].bitangent = bitangent;
 					vertices[j].bitangent = bitangent;
+				}
+			}
+			for (int j = 0; j < vtxNum; j++)
+			{
+				glm::vec3& n = vertices[j].normal;
+				glm::vec3& t = vertices[j].tangent;
+				glm::vec3& b = vertices[j].bitangent;
+
+				// Gram-Schmidt orthogonalize
+				t = glm::normalize(t - n * glm::dot(n, t));
+
+				// Calculate handedness
+				if (glm::dot(glm::cross(n, t), b) < 0.0f) {
+					t = t * -1.0f;
 				}
 			}
 			vRenderer->CreateVertexBuffer((void*)vertices, sizeof(Vertex), vtxNum, vertex_buffer, vertex_buffer_memory);

@@ -24,6 +24,34 @@ private:
 	void GenerateMeshlets(void* vtxData, int vtxNum);
 
 private:
+	/// struct
+	struct SubMeshData
+	{
+		VkBuffer ib;
+		VkDeviceMemory ibm;
+		uint32_t count;
+		int32_t mid;
+
+		/// <summary>
+		///  for meshlets
+		/// </summary>
+		uint32_t mnum;
+		VkBuffer mb;
+		VkDeviceMemory mbm;
+		VkDescriptorBufferInfo mbi;
+		VkBuffer vsb;
+		VkDeviceMemory vsbm;
+		VkDescriptorBufferInfo vsbi;
+	};
+
+	struct MeshData
+	{
+		VkBuffer vb;
+		VkDeviceMemory vbm;
+
+		std::vector<SubMeshData> subMeshes;
+	};
+
 	/// renderering data
 	std::vector<VkBuffer> vertex_buffers;
 	std::vector<VkDeviceMemory> vertex_buffer_memorys;
