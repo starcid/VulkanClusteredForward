@@ -39,11 +39,10 @@ layout(std140, binding = 2, set = 0) uniform PointLightData
 } pointLight[MAX_LIGHT_NUM];
 
 layout(location = 0) in vec4 inPosition;
-layout(location = 1) in vec3 inColor;
-layout(location = 2) in vec3 inTexcoord;
-layout(location = 3) in vec3 inNormal;
-layout(location = 4) in vec3 inTangent;
-layout(location = 5) in vec3 inBitangent;
+layout(location = 1) in vec4 inColor;
+layout(location = 2) in vec4 inTexcoord;
+layout(location = 3) in vec4 inNormal;
+layout(location = 4) in vec4 inTangent;
 
 layout (location = 0) out Interpolants {
     vec3 fragColor;
@@ -55,16 +54,16 @@ layout (location = 0) out Interpolants {
 
 void main() {
     gl_Position = transform.mvp * inPosition;
-    OUT.fragColor = inColor;
-    OUT.fragTexCoord = inTexcoord;
+    OUT.fragColor = vec3(inColor);
+    OUT.fragTexCoord = vec3(inTexcoord);
     OUT.fragPos = vec3(transform.model * inPosition);
 
-    vec3 bitangent = cross(inNormal, inTangent);
+    vec3 bitangent = cross(vec3(inNormal), vec3(inTangent));
 	vec3 v =  transform.cam_pos - vec3(inPosition);
-    OUT.tanViewPos  = vec3(dot(inTangent, v), dot(bitangent, v), dot(inNormal, v));
+    OUT.tanViewPos  = vec3(dot(vec3(inTangent), v), dot(bitangent, v), dot(vec3(inNormal), v));
     for(int i = 0; i < MAX_LIGHT_NUM; i++)
     {
         vec3 l = vec3(transform.light_pos[i] - inPosition);
-        OUT.tanLightPos[i] = vec3(dot(inTangent, l), dot(bitangent, l), dot(inNormal, l));
+        OUT.tanLightPos[i] = vec3(dot(vec3(inTangent), l), dot(bitangent, l), dot(vec3(inNormal), l));
     }
 }

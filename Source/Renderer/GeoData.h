@@ -30,6 +30,7 @@ protected:
 	///  test data
 	/// </summary>
 	static const std::vector<Vertex> vertices;
+	static const std::vector<int> indices;
 };
 
 #endif // !__GEO_DATA_H__

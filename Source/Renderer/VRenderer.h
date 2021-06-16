@@ -54,6 +54,7 @@ public:
 	void CreateIndexBuffer(void* idata, uint32_t single, uint32_t length, VkBuffer& buffer, VkDeviceMemory& mem);
 	void CreateImageBuffer(void* imageData, uint32_t length, VkBuffer& buffer, VkDeviceMemory& mem);
 	void CreateLocalStorageBuffer(void** data, uint32_t length, VkBuffer& buffer, VkDeviceMemory& mem);
+	void CreateLocalStorageBufferWithData(void* data, uint32_t length, VkBuffer& buffer, VkDeviceMemory& mem, VkDescriptorBufferInfo& info);
 	void CreateGraphicsStorageBuffer(void** data, uint32_t length, VkBuffer& buffer, VkDeviceMemory& mem);
 	void CreateUniformBuffer(void** data, uint32_t length, VkBuffer& buffer, VkDeviceMemory& mem);
 	void UnmapBufferMemory(VkDeviceMemory& mem);
@@ -80,7 +81,7 @@ public:
 	void FreeDescriptorSets(VkDescriptorSet* descSets);
 
 	void AllocateMeshletDescriptorSets(VkDescriptorSet* descSets);
-	void UploadMeshlets(VkDescriptorBufferInfo* meshletBufInfo, VkDescriptorBufferInfo* vertexBufInfo, VkDescriptorSet* descSets);
+	void UploadMeshlets(VkDescriptorBufferInfo* vertexBufInfo, VkDescriptorBufferInfo* meshletBufInfo, VkDescriptorBufferInfo* vertexIndicesBufInfo, VkDescriptorBufferInfo* primtiveIndicesBufInfo, VkDescriptorSet* descSets);
 	void BindMeshlets(VkDescriptorSet* descSets);
 	void FreeMeshletDescriptorSets(VkDescriptorSet* descSets);
 
@@ -115,7 +116,7 @@ public:
 
 private:
 	std::array<VkVertexInputBindingDescription, 1> GetBindingDescription();
-	std::array<VkVertexInputAttributeDescription, 6> GetAttributeDescriptions();
+	std::array<VkVertexInputAttributeDescription, 5> GetAttributeDescriptions();
 
 	void CreateInstance();
 	bool CheckValidationLayerSupport();

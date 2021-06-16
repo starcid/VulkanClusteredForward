@@ -21,27 +21,28 @@ public:
 	virtual void initTinyObjData(tinyobj::attrib_t& attrib, std::vector<tinyobj::shape_t>& shapes, std::vector<tinyobj::material_t>& materials);
 
 private:
-	void GenerateMeshlets(void* vtxData, int vtxNum);
-
-private:
 	/// struct
 	struct SubMeshData
 	{
 		VkBuffer ib;
 		VkDeviceMemory ibm;
-		uint32_t count;
+		
+		std::vector<int> indices;
+
 		int32_t mid;
 
-		/// <summary>
 		///  for meshlets
-		/// </summary>
 		uint32_t mnum;
 		VkBuffer mb;
 		VkDeviceMemory mbm;
 		VkDescriptorBufferInfo mbi;
-		VkBuffer vsb;
-		VkDeviceMemory vsbm;
-		VkDescriptorBufferInfo vsbi;
+		VkBuffer pib;
+		VkDeviceMemory pibm;
+		VkDescriptorBufferInfo pibi;
+		VkBuffer vib;
+		VkDeviceMemory vibm;
+		VkDescriptorBufferInfo vibi;
+		VkDescriptorSet* dsets;
 	};
 
 	struct MeshData
@@ -49,27 +50,22 @@ private:
 		VkBuffer vb;
 		VkDeviceMemory vbm;
 
+		std::vector<Vertex> vertexs;
+
 		std::vector<SubMeshData> subMeshes;
+
+		///  for meshlets
+		VkBuffer vsb;
+		VkDeviceMemory vsbm;
+		VkDescriptorBufferInfo vsbi;
 	};
 
+private:
+	void GenerateMeshlets(MeshData* meshData);
+	int CalculateHash(int idx1, int idx2, int idx3);
+
 	/// renderering data
-	std::vector<VkBuffer> vertex_buffers;
-	std::vector<VkDeviceMemory> vertex_buffer_memorys;
-	std::vector<VkBuffer> index_buffers;
-	std::vector<VkDeviceMemory> index_buffer_memorys;
-	std::vector<uint32_t> indices_counts;
-	std::vector<int32_t> mat_ids;
-
-	/// meshlet data
-	std::vector<uint32_t> meshlet_nums;
-	std::vector<VkBuffer> meshlet_buffers;
-	std::vector<VkDeviceMemory> meshlet_buffers_memorys;
-	std::vector<VkDescriptorBufferInfo> meshlet_buffer_infos;
-	std::vector<VkBuffer> vertex_storage_buffers;
-	std::vector<VkDeviceMemory> vertex_storage_buffer_memorys;
-	std::vector<VkDescriptorBufferInfo> vertex_storage_buffer_infos;
-
-	std::vector<VkDescriptorSet*> desc_sets_data;
+	std::vector<MeshData> meshDatas;
 };
 
 #endif	/*__GEO_DATA_VK_H__*/

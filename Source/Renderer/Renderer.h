@@ -24,32 +24,18 @@
 /// one buffers(simple first)
 struct Vertex {
 	glm::vec4 pos;
-	glm::vec3 color;
-	glm::vec3 texcoord;
-	glm::vec3 normal;
-	glm::vec3 tangent;
-	glm::vec3 bitangent;
-};
-
-/// std 430 usgae
-struct Vertex_Storage {
-	glm::vec4 pos;
-	glm::vec3 color;
-	float padding1;
-	glm::vec3 texcoord;
-	float padding2;
-	glm::vec3 normal;
-	float padding3;
-	glm::vec3 tangent;
-	float padding4;
-	glm::vec3 bitangent;
-	float padding5;
+	glm::vec4 color;
+	glm::vec4 texcoord;
+	glm::vec4 normal;
+	glm::vec4 tangent;
 };
 
 /// meshlet for mesh shading
 struct Meshlet {
-	glm::uint vertices[MAX_MESH_SHADER_VERTICES];
-	glm::uint vertex_count;
+	glm::uint vertexCount;
+	glm::uint primCount;
+	glm::uint vertexBegin;
+	glm::uint primBegin;
 };
 
 /// transform data for shader

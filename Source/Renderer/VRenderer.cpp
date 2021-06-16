@@ -796,9 +796,9 @@ std::array<VkVertexInputBindingDescription, 1> VulkanRenderer::GetBindingDescrip
 	return bindingDescriptions;
 }
 
-std::array<VkVertexInputAttributeDescription, 6> VulkanRenderer::GetAttributeDescriptions()
+std::array<VkVertexInputAttributeDescription, 5> VulkanRenderer::GetAttributeDescriptions()
 {
-	std::array<VkVertexInputAttributeDescription, 6> attributeDescriptions = {};
+	std::array<VkVertexInputAttributeDescription, 5> attributeDescriptions = {};
 
 	attributeDescriptions[0].binding = VERTEX_BUFFER_BIND_ID;
 	attributeDescriptions[0].location = 0;
@@ -807,28 +807,23 @@ std::array<VkVertexInputAttributeDescription, 6> VulkanRenderer::GetAttributeDes
 
 	attributeDescriptions[1].binding = VERTEX_BUFFER_BIND_ID;
 	attributeDescriptions[1].location = 1;
-	attributeDescriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
+	attributeDescriptions[1].format = VK_FORMAT_R32G32B32A32_SFLOAT;
 	attributeDescriptions[1].offset = offsetof(Vertex, color);
 
 	attributeDescriptions[2].binding = VERTEX_BUFFER_BIND_ID;
 	attributeDescriptions[2].location = 2;
-	attributeDescriptions[2].format = VK_FORMAT_R32G32B32_SFLOAT;
+	attributeDescriptions[2].format = VK_FORMAT_R32G32B32A32_SFLOAT;
 	attributeDescriptions[2].offset = offsetof(Vertex, texcoord);
 
 	attributeDescriptions[3].binding = VERTEX_BUFFER_BIND_ID;
 	attributeDescriptions[3].location = 3;
-	attributeDescriptions[3].format = VK_FORMAT_R32G32B32_SFLOAT;
+	attributeDescriptions[3].format = VK_FORMAT_R32G32B32A32_SFLOAT;
 	attributeDescriptions[3].offset = offsetof(Vertex, normal);
 
 	attributeDescriptions[4].binding = VERTEX_BUFFER_BIND_ID;
 	attributeDescriptions[4].location = 4;
-	attributeDescriptions[4].format = VK_FORMAT_R32G32B32_SFLOAT;
+	attributeDescriptions[4].format = VK_FORMAT_R32G32B32A32_SFLOAT;
 	attributeDescriptions[4].offset = offsetof(Vertex, tangent);
-
-	attributeDescriptions[5].binding = VERTEX_BUFFER_BIND_ID;
-	attributeDescriptions[5].location = 5;
-	attributeDescriptions[5].format = VK_FORMAT_R32G32B32_SFLOAT;
-	attributeDescriptions[5].offset = offsetof(Vertex, bitangent);
 
 	return attributeDescriptions;
 }
@@ -1060,21 +1055,35 @@ void VulkanRenderer::CreateGraphicsPipeline()
 
 	if (is_mesh_shading_supported)
 	{
+		VkDescriptorSetLayoutBinding vertexLayoutBinding = {};
+		vertexLayoutBinding.binding = 0;
+		vertexLayoutBinding.descriptorCount = 1;
+		vertexLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+		vertexLayoutBinding.pImmutableSamplers = nullptr;
+		vertexLayoutBinding.stageFlags = VK_SHADER_STAGE_MESH_BIT_NV;
+
 		VkDescriptorSetLayoutBinding meshletLayoutBinding = {};
-		meshletLayoutBinding.binding = 0;
+		meshletLayoutBinding.binding = 1;
 		meshletLayoutBinding.descriptorCount = 1;
 		meshletLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
 		meshletLayoutBinding.pImmutableSamplers = nullptr;
 		meshletLayoutBinding.stageFlags = VK_SHADER_STAGE_MESH_BIT_NV;
 
-		VkDescriptorSetLayoutBinding vertexLayoutBinding = {};
-		vertexLayoutBinding.binding = 1;
-		vertexLayoutBinding.descriptorCount = 1;
-		vertexLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-		vertexLayoutBinding.pImmutableSamplers = nullptr;
-		vertexLayoutBinding.stageFlags = VK_SHADER_STAGE_MESH_BIT_NV;
+		VkDescriptorSetLayoutBinding vertexIndiceLayoutBinding = {};
+		vertexIndiceLayoutBinding.binding = 2;
+		vertexIndiceLayoutBinding.descriptorCount = 1;
+		vertexIndiceLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+		vertexIndiceLayoutBinding.pImmutableSamplers = nullptr;
+		vertexIndiceLayoutBinding.stageFlags = VK_SHADER_STAGE_MESH_BIT_NV;
+
+		VkDescriptorSetLayoutBinding primIndiceLayoutBinding = {};
+		primIndiceLayoutBinding.binding = 3;
+		primIndiceLayoutBinding.descriptorCount = 1;
+		primIndiceLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+		primIndiceLayoutBinding.pImmutableSamplers = nullptr;
+		primIndiceLayoutBinding.stageFlags = VK_SHADER_STAGE_MESH_BIT_NV;
 	
-		std::array<VkDescriptorSetLayoutBinding, 2> meshlet_bindings = { meshletLayoutBinding, vertexLayoutBinding };
+		std::array<VkDescriptorSetLayoutBinding, 4> meshlet_bindings = { vertexLayoutBinding, meshletLayoutBinding, vertexIndiceLayoutBinding, primIndiceLayoutBinding };
 		VkDescriptorSetLayoutCreateInfo descriptorLayout = {};
 		descriptorLayout.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
 		descriptorLayout.pNext = NULL;
@@ -1753,6 +1762,21 @@ void VulkanRenderer::CreateLocalStorageBuffer(void** data, uint32_t length, VkBu
 	vkMapMemory(device, mem, 0, bufferSize, 0, data);
 }
 
+void VulkanRenderer::CreateLocalStorageBufferWithData(void* data, uint32_t length, VkBuffer& buffer, VkDeviceMemory& mem, VkDescriptorBufferInfo& info)
+{
+	VkDeviceSize bufferSize = length;
+	CreateBuffer(bufferSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, buffer, mem);
+
+	void* lmem;
+	vkMapMemory(device, mem, 0, bufferSize, 0, &lmem);
+	memcpy(lmem, data, static_cast<size_t>(bufferSize));
+	vkUnmapMemory(device, mem);
+
+	info.buffer = buffer;
+	info.offset = 0;
+	info.range = length;
+}
+
 void VulkanRenderer::CreateGraphicsStorageBuffer(void** data, uint32_t length, VkBuffer& buffer, VkDeviceMemory& mem)
 {
 	VkDeviceSize bufferSize = length;
@@ -1899,33 +1923,55 @@ void VulkanRenderer::UpdateMaterial(Material* mat)
 	vkCmdBindDescriptorSets(command_buffers[active_command_buffer_idx], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_layout, 0, 1, &descSets[active_command_buffer_idx], 0, nullptr);
 }
 
-void VulkanRenderer::UploadMeshlets(VkDescriptorBufferInfo* meshletBufInfo, VkDescriptorBufferInfo* vertexBufInfo, VkDescriptorSet* descSets)
+void VulkanRenderer::UploadMeshlets(VkDescriptorBufferInfo* vertexBufInfo, VkDescriptorBufferInfo* meshletBufInfo, VkDescriptorBufferInfo* vertexIndicesBufInfo, VkDescriptorBufferInfo* primtiveIndicesBufInfo, VkDescriptorSet* descSets)
 {
-	std::array<VkWriteDescriptorSet, 2> descriptorWrites = {};
+	std::array<VkWriteDescriptorSet, 4> descriptorWrites = {};
 
 	for (int i = 0; i < 3; i++)
 	{
-		/// meshlets
+		/// vertex buffer
 		descriptorWrites[0] = {};
 		descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 		descriptorWrites[0].pNext = NULL;
 		descriptorWrites[0].dstSet = descSets[i];
 		descriptorWrites[0].descriptorCount = 1;
 		descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-		descriptorWrites[0].pBufferInfo = meshletBufInfo;
+		descriptorWrites[0].pBufferInfo = vertexBufInfo;
 		descriptorWrites[0].dstArrayElement = 0;
 		descriptorWrites[0].dstBinding = 0;
 
-		/// vertex buffer
+		/// meshlets
 		descriptorWrites[1] = {};
 		descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 		descriptorWrites[1].pNext = NULL;
 		descriptorWrites[1].dstSet = descSets[i];
 		descriptorWrites[1].descriptorCount = 1;
 		descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-		descriptorWrites[1].pBufferInfo = vertexBufInfo;
+		descriptorWrites[1].pBufferInfo = meshletBufInfo;
 		descriptorWrites[1].dstArrayElement = 0;
 		descriptorWrites[1].dstBinding = 1;
+
+		/// vertex indices
+		descriptorWrites[2] = {};
+		descriptorWrites[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		descriptorWrites[2].pNext = NULL;
+		descriptorWrites[2].dstSet = descSets[i];
+		descriptorWrites[2].descriptorCount = 1;
+		descriptorWrites[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+		descriptorWrites[2].pBufferInfo = vertexIndicesBufInfo;
+		descriptorWrites[2].dstArrayElement = 0;
+		descriptorWrites[2].dstBinding = 2;
+
+		/// promitive indices
+		descriptorWrites[3] = {};
+		descriptorWrites[3].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		descriptorWrites[3].pNext = NULL;
+		descriptorWrites[3].dstSet = descSets[i];
+		descriptorWrites[3].descriptorCount = 1;
+		descriptorWrites[3].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+		descriptorWrites[3].pBufferInfo = primtiveIndicesBufInfo;
+		descriptorWrites[3].dstArrayElement = 0;
+		descriptorWrites[3].dstBinding = 3;
 
 		vkUpdateDescriptorSets(device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, NULL);
 	}
@@ -2082,12 +2128,16 @@ void VulkanRenderer::FreeDescriptorSets(VkDescriptorSet* descSets)
 
 void VulkanRenderer::CreateMeshletDescriptorSetsPool()
 {
-	std::array<VkDescriptorPoolSize, 2> typeCounts = {};
+	std::array<VkDescriptorPoolSize, 4> typeCounts = {};
 
 	typeCounts[0].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
 	typeCounts[0].descriptorCount = swap_chain_images.size() * MAX_MODEL_NUM;
 	typeCounts[1].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
 	typeCounts[1].descriptorCount = swap_chain_images.size() * MAX_MODEL_NUM;
+	typeCounts[2].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+	typeCounts[2].descriptorCount = swap_chain_images.size() * MAX_MODEL_NUM;
+	typeCounts[3].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+	typeCounts[3].descriptorCount = swap_chain_images.size() * MAX_MODEL_NUM;
 
 	VkDescriptorPoolCreateInfo descriptorPool = {};
 	descriptorPool.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
@@ -2478,53 +2528,37 @@ void VulkanRenderer::Draw(GeoData* geoData, std::vector<Material*>& mats)
 		mats[i]->PrepareToDraw();
 	}
 
-	/// use index buffer
-	if (data->index_buffers.size() > 0)
+	/// draw with indice buffer
+	for (int i = 0; i < data->meshDatas.size(); i++)
 	{
-		for (int i = 0; i < data->vertex_buffers.size(); i++)
+		GeoDataVK::MeshData* meshData = &data->meshDatas[i];
+		
+		VkBuffer vertexBuffers[] = { meshData->vb };
+		VkDeviceSize offsets[] = { 0 };
+		vkCmdBindVertexBuffers(cb, VERTEX_BUFFER_BIND_ID, 1, vertexBuffers, offsets);
+
+		for (int j = 0; j < meshData->subMeshes.size(); j++)
 		{
-			VkBuffer vertexBuffers[] = { data->vertex_buffers[i] };
-			VkDeviceSize offsets[] = { 0 };
-			vkCmdBindVertexBuffers(cb, VERTEX_BUFFER_BIND_ID, 1, vertexBuffers, offsets);
-		}
-		for (int i = 0; i < data->index_buffers.size(); i++)
-		{
-			if (data->mat_ids.size() > i && data->mat_ids[i] >= 0 && mats.size() > data->mat_ids[i] && mats[data->mat_ids[i]] != NULL)
+			GeoDataVK::SubMeshData* subMeshData = &meshData->subMeshes[j];
+			
+			if (subMeshData->mid >= 0 && mats[subMeshData->mid] != NULL)
 			{
 				/// material
-				Material* mat = mats[data->mat_ids[i]];
-				vRenderer->SetTexture(mat->GetDiffuseTexture());
-				vRenderer->SetNormalTexture(mat->GetNormalTexture());
-				vRenderer->UpdateMaterial(mat);
-			}
-			vkCmdBindIndexBuffer(cb, data->index_buffers[i], 0, VK_INDEX_TYPE_UINT16);
-			vkCmdDrawIndexed(cb, data->indices_counts[i], 1, 0, 0, 0);
-		}
-	}
-	else
-	{
-		for (int i = 0; i < data->vertex_buffers.size(); i++)
-		{
-			if (data->mat_ids.size() > i && data->mat_ids[i] >= 0 && mats.size() > data->mat_ids[i] && mats[data->mat_ids[i]] != NULL)
-			{
-				/// material
-				Material* mat = mats[data->mat_ids[i]];
+				Material* mat = mats[subMeshData->mid];
 				vRenderer->SetTexture(mat->GetDiffuseTexture());
 				vRenderer->SetNormalTexture(mat->GetNormalTexture());
 				vRenderer->UpdateMaterial(mat);
 			}
 			if (!vRenderer->IsMeshShading())
 			{
-				VkBuffer vertexBuffers[] = { data->vertex_buffers[i] };
-				VkDeviceSize offsets[] = { 0 };
-				vkCmdBindVertexBuffers(cb, VERTEX_BUFFER_BIND_ID, 1, vertexBuffers, offsets);
-				vkCmdDraw(cb, data->indices_counts[i], 1, 0, 0);
+				vkCmdBindIndexBuffer(cb, subMeshData->ib, 0, VK_INDEX_TYPE_UINT32);
+				vkCmdDrawIndexed(cb, subMeshData->indices.size(), 1, 0, 0, 0);
 			}
 			else
 			{
-				vRenderer->BindMeshlets(data->desc_sets_data[i]);
+				vRenderer->BindMeshlets(subMeshData->dsets);
 
-				uint32_t count = data->meshlet_nums[i];
+				uint32_t count = subMeshData->mnum;
 				const uint32_t max_count = vRenderer->GetMaxDrawMeshTaskCount();
 				uint32_t start = 0;
 				while (count > max_count)
