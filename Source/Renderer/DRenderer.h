@@ -36,6 +36,9 @@ using namespace Microsoft::WRL;
 using Microsoft::WRL::ComPtr;
 
 class GeoData;
+class Texture;
+class Material;
+class PointLight;
 class D12Renderer : public Renderer
 {
 	static const UINT frameCount = 3;
@@ -56,10 +59,16 @@ public:
 
 	virtual void OnSceneExit();
 
-	void CreateVertexBuffer(void* vdata, uint32_t single, uint32_t length, ComPtr<ID3D12Resource>& vtxbuf);
+	void CreateVertexBuffer(void* vdata, uint32_t single, uint32_t length, ComPtr<ID3D12Resource>& vtxbuf, ComPtr<ID3D12Resource>&bufuploader, D3D12_VERTEX_BUFFER_VIEW& vbv);
+	void CreateIndexBuffer(void* idata, uint32_t single, uint32_t length, ComPtr<ID3D12Resource>& indicebuf, ComPtr<ID3D12Resource>& bufuploader, D3D12_INDEX_BUFFER_VIEW& ibv);
 
 private:
 	void GetHardwareAdapter(_In_ IDXGIFactory1* pFactory, _Outptr_result_maybenull_ IDXGIAdapter1** ppAdapter, bool requestHighPerformanceAdapter = false);
+	Microsoft::WRL::ComPtr<ID3D12Resource> CreateDefaultBuffer(ComPtr<ID3D12Device>& device, ComPtr<ID3D12GraphicsCommandList>& cmdList, const void* initData, UINT64 byteSize, ComPtr<ID3D12Resource>& uploadBuffer);
+
+	void SetTexture(Texture* tex);
+	void SetNormalTexture(Texture* tex);
+	void UpdateMaterial(Material* mat);
 
 private:
 	ComPtr<IDXGISwapChain3> m_swapChain;
@@ -75,10 +84,11 @@ private:
 	ComPtr<ID3D12CommandAllocator> m_commandAllocator;
 	ComPtr<ID3D12RootSignature> m_rootSignature;
 	ComPtr<ID3D12PipelineState> m_pipelineState;
-	ComPtr<ID3D12PipelineState> m_pipelineStateShadowMap;
 	ComPtr<ID3D12Resource> m_renderTargets[frameCount];
 	ComPtr<ID3D12Resource> m_depthStencil;
 	ComPtr<ID3D12GraphicsCommandList> m_commandList;
+
+	CD3DX12_RESOURCE_BARRIER m_transtionBarrier;
 
 	CD3DX12_VIEWPORT m_viewport;
 	CD3DX12_RECT m_scissorRect;

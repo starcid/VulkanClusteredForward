@@ -8,6 +8,7 @@
 
 class TextureData
 {
+protected:
 	const bool SaveOriginalPixel = false;
 public:
 	TextureData(std::string& path);
@@ -24,11 +25,7 @@ public:
 	inline int32_t GetWidth() { return tex_width; }
 	inline int32_t GetHeight() { return tex_height; }
 
-	inline VkImageView& GetImageView() { return texture_image_view; }
-	inline VkSampler& GetTextureSampler() { return texture_sampler; }
-	inline VkDescriptorImageInfo* GetImageInfo() { return &image_info; }
-
-private:
+protected:
 	stbi_uc* pixels;
 	int32_t tex_width;
 	int32_t tex_height;
@@ -37,12 +34,6 @@ private:
 	uint32_t ref_count;
 
 	std::string tex_path;	/// load from path
-
-	VkImage texture_image;
-	VkDeviceMemory texture_image_memory;
-	VkImageView texture_image_view;
-	VkSampler texture_sampler;
-	VkDescriptorImageInfo image_info;
 };
 
 class Texture
@@ -57,9 +48,7 @@ public:
 	inline int32_t GetWidth() { return tex_data->GetWidth(); }
 	inline int32_t GetHeight() { return tex_data->GetHeight(); }
 
-	inline VkImageView& GetImageView() { return tex_data->GetImageView(); }
-	inline VkSampler& GetTextureSampler() { return tex_data->GetTextureSampler(); }
-	inline VkDescriptorImageInfo* GetImageInfo() { return tex_data->GetImageInfo(); }
+	inline TextureData* GetTextureData() { return tex_data; }
 
 private:
 	TextureData* tex_data;

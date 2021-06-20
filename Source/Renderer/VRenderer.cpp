@@ -5,6 +5,7 @@
 #include "Common/Utils.h"
 #include "Camera.h"
 #include "Texture.h"
+#include "TexDataVK.h"
 #include "Material.h"
 #include "Light.h"
 #include "VRenderer.h"
@@ -2034,17 +2035,17 @@ void VulkanRenderer::SetLightPos(glm::vec4& pos, int idx)
 void VulkanRenderer::SetTexture(Texture* tex)
 {
 	if (tex != NULL)
-		image_info = tex->GetImageInfo();
+		image_info = ((TextureDataVK*)tex->GetTextureData())->GetImageInfo();
 	else
-		image_info = default_tex->GetImageInfo();
+		image_info = ((TextureDataVK*)default_tex->GetTextureData())->GetImageInfo();
 }
 
 void VulkanRenderer::SetNormalTexture(Texture* tex)
 {
 	if (tex != NULL)
-		normal_image_info = tex->GetImageInfo();
+		normal_image_info = ((TextureDataVK*)tex->GetTextureData())->GetImageInfo();
 	else
-		normal_image_info = default_tex->GetImageInfo();
+		normal_image_info = ((TextureDataVK*)default_tex->GetTextureData())->GetImageInfo();
 }
 
 void VulkanRenderer::CreateUniformBuffers()

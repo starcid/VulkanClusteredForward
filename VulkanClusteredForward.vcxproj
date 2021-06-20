@@ -206,6 +206,8 @@
     <ClCompile Include="Source\Renderer\GeoDataVK.cpp" />
     <ClCompile Include="Source\Renderer\Light.cpp" />
     <ClCompile Include="Source\Renderer\Material.cpp" />
+    <ClCompile Include="Source\Renderer\TexDataDX12.cpp" />
+    <ClCompile Include="Source\Renderer\TexDataVK.cpp" />
     <ClCompile Include="Source\Renderer\Texture.cpp" />
     <ClCompile Include="Source\Renderer\TOModel.cpp" />
     <ClCompile Include="Source\Renderer\VRenderer.cpp" />
@@ -234,6 +236,8 @@
     <ClInclude Include="Source\Renderer\Material.h" />
     <ClInclude Include="Source\Renderer\Model.h" />
     <ClInclude Include="Source\Renderer\Renderer.h" />
+    <ClInclude Include="Source\Renderer\TexDataDX12.h" />
+    <ClInclude Include="Source\Renderer\TexDataVK.h" />
     <ClInclude Include="Source\Renderer\Texture.h" />
     <ClInclude Include="Source\Renderer\TOModel.h" />
     <ClInclude Include="Source\Renderer\TransformEntity.h" />

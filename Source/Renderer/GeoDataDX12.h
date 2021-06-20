@@ -10,6 +10,7 @@
 
 class GeoDataDX12 : public GeoData
 {
+	friend class D12Renderer;
 public:
 	GeoDataDX12(Renderer* renderer);
 	virtual ~GeoDataDX12();
@@ -18,9 +19,32 @@ public:
 	virtual void initTinyObjData(tinyobj::attrib_t& attrib, std::vector<tinyobj::shape_t>& shapes, std::vector<tinyobj::material_t>& materials);
 
 private:
-	std::vector<ComPtr<ID3D12Resource>> vertex_buffers;
-	std::vector<D3D12_VERTEX_BUFFER_VIEW> vertex_buffer_views;
+	/// struct
+	struct SubMeshData
+	{
+		ComPtr<ID3D12Resource> ib;
+		ComPtr<ID3D12Resource> ibu;
+		D3D12_INDEX_BUFFER_VIEW ibv;
 
+		std::vector<int> indices;
+
+		int32_t mid;
+	};
+
+	struct MeshData
+	{
+		ComPtr<ID3D12Resource> vb;
+		ComPtr<ID3D12Resource> vbu;
+		D3D12_VERTEX_BUFFER_VIEW vbv;
+
+		std::vector<Vertex> vertexs;
+
+		std::vector<SubMeshData> subMeshes;
+	};
+
+private:
+	/// renderering data
+	std::vector<MeshData> meshDatas;
 };
 
 #endif	/*__GEO_DATA_DX12_H__*/
