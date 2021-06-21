@@ -9,6 +9,7 @@
 
 #include "ClusteCulling.h"
 #include "GeoDataDX12.h"
+#include "TexDataDX12.h"
 
 inline std::string HrToString(HRESULT hr)
 {
@@ -186,6 +187,13 @@ D12Renderer::D12Renderer(GLFWwindow* win)
         dsvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
         ThrowIfFailed(m_device->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(&m_dsvHeap)));
 
+        // Describe and create a shader resource view (SRV) heap for the texture.
+        D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
+        srvHeapDesc.NumDescriptors = 1;
+        srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+        srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+        ThrowIfFailed(m_device->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(&m_srvHeap)));
+
         // Describe and create a shader resource view (SRV) and constant 
         // buffer view (CBV) descriptor heap.  Heap layout: null views, 
         // object diffuse + normal textures views, frame 1's shadow buffer, 
@@ -212,6 +220,25 @@ D12Renderer::D12Renderer(GLFWwindow* win)
         m_rtvDescriptorSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
     }
 
+    // Create a single sampler
+    {
+        /// also can use static desc in root signature, here seperate
+        D3D12_SAMPLER_DESC sampleDesc = {};
+        sampleDesc.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+        sampleDesc.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+        sampleDesc.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+        sampleDesc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+        sampleDesc.MipLODBias = 0;
+        sampleDesc.MaxAnisotropy = 1;
+        sampleDesc.ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER;
+        for (int i = 0; i < 4; i++)
+            sampleDesc.BorderColor[i] = 0.0f;
+        sampleDesc.MinLOD = 0.0f;
+        sampleDesc.MaxLOD = D3D12_FLOAT32_MAX;
+
+        m_device->CreateSampler(&sampleDesc, m_samplerHeap->GetCPUDescriptorHandleForHeapStart());
+    }
+
     ThrowIfFailed(m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_commandAllocator)));
 
     // Create the root signature.
@@ -226,25 +253,54 @@ D12Renderer::D12Renderer(GLFWwindow* win)
             featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_0;
         }
 
+        enum RootParameterIndex
+        {
+            TransformUniformParam,
+            MaterialUniformParam,
+            LightUniformParam,
+            GlobalLightIndexBuffer,
+            LightGridBuffer,
+            DiffuseSRVBase,
+            DiffuseSamplerBase,
+            NormalSRVBase,
+            NormalSamplerBase,
+            RootParameterCount
+        };
+
         // Allow input layout and deny unnecessary access to certain pipeline stages.
         D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags =
             D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
-            D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
             D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
             D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS |
-            D3D12_ROOT_SIGNATURE_FLAG_DENY_PIXEL_SHADER_ROOT_ACCESS;
+            D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS;
 
         // A single 32-bit constant root parameter that is used by the vertex shader.
-        CD3DX12_ROOT_PARAMETER1 rootParameters[1];
-        rootParameters[0].InitAsConstants(sizeof(XMMATRIX) / 4, 0, 0, D3D12_SHADER_VISIBILITY_VERTEX);
+        CD3DX12_ROOT_PARAMETER rootParameters[RootParameterIndex::RootParameterCount];
+        rootParameters[RootParameterIndex::TransformUniformParam].InitAsConstantBufferView(0, 0, D3D12_SHADER_VISIBILITY_ALL);
+        rootParameters[RootParameterIndex::MaterialUniformParam].InitAsConstantBufferView(0, 0, D3D12_SHADER_VISIBILITY_ALL);
+        rootParameters[RootParameterIndex::LightUniformParam].InitAsConstantBufferView(0, 0, D3D12_SHADER_VISIBILITY_ALL);
+        rootParameters[RootParameterIndex::GlobalLightIndexBuffer].InitAsConstantBufferView(0, 0, D3D12_SHADER_VISIBILITY_PIXEL);
+        rootParameters[RootParameterIndex::LightGridBuffer].InitAsConstantBufferView(0, 0, D3D12_SHADER_VISIBILITY_PIXEL);
 
-        CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC rootSignatureDescription;
-        rootSignatureDescription.Init_1_1(_countof(rootParameters), rootParameters, 0, nullptr, rootSignatureFlags);
+        // Texture 1
+        CD3DX12_DESCRIPTOR_RANGE texture1Range(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
+        CD3DX12_DESCRIPTOR_RANGE texture1SamplerRange(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, 1, 0);
+        rootParameters[RootParameterIndex::DiffuseSRVBase].InitAsDescriptorTable(1, &texture1Range, D3D12_SHADER_VISIBILITY_PIXEL);
+        rootParameters[RootParameterIndex::DiffuseSamplerBase].InitAsDescriptorTable(1, &texture1SamplerRange, D3D12_SHADER_VISIBILITY_PIXEL);
+
+        // Texture 2
+        CD3DX12_DESCRIPTOR_RANGE texture2Range(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1);
+        CD3DX12_DESCRIPTOR_RANGE texture2SamplerRange(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, 1, 1);
+        rootParameters[RootParameterIndex::NormalSRVBase].InitAsDescriptorTable(1, &texture2Range, D3D12_SHADER_VISIBILITY_PIXEL);
+        rootParameters[RootParameterIndex::NormalSamplerBase].InitAsDescriptorTable(1, &texture2SamplerRange, D3D12_SHADER_VISIBILITY_PIXEL);
+
+        CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDescription;
+        rootSignatureDescription.Init(_countof(rootParameters), rootParameters, 0, nullptr, rootSignatureFlags);
 
         // Serialize the root signature.
         ComPtr<ID3DBlob> rootSignatureBlob;
         ComPtr<ID3DBlob> errorBlob;
-        ThrowIfFailed(D3DX12SerializeVersionedRootSignature(&rootSignatureDescription,
+        ThrowIfFailed(D3D12SerializeRootSignature(&rootSignatureDescription,
             featureData.HighestVersion, &rootSignatureBlob, &errorBlob));
         // Create the root signature.
         ThrowIfFailed(m_device->CreateRootSignature(0, rootSignatureBlob->GetBufferPointer(),
@@ -462,17 +518,76 @@ void D12Renderer::OnSceneExit()
 
 void D12Renderer::SetTexture(Texture* tex)
 {
-    
+    m_commandList->SetGraphicsRootShaderResourceView(5, ((TextureDataDX12*)(tex->GetTextureData()))->GetTexture()->GetGPUVirtualAddress());
+    m_commandList->SetGraphicsRootDescriptorTable(6, m_samplerHeap->GetGPUDescriptorHandleForHeapStart());
 }
 
 void D12Renderer::SetNormalTexture(Texture* tex)
 {
-    
+    m_commandList->SetGraphicsRootShaderResourceView(7, ((TextureDataDX12*)(tex->GetTextureData()))->GetTexture()->GetGPUVirtualAddress());
+    m_commandList->SetGraphicsRootDescriptorTable(8, m_samplerHeap->GetGPUDescriptorHandleForHeapStart());
 }
 
 void D12Renderer::UpdateMaterial(Material* mat)
 {
     
+}
+
+void D12Renderer::CreateTexture(void* imageData, int width, int height, DXGI_FORMAT format, ComPtr<ID3D12Resource>& texture)
+{
+    ComPtr<ID3D12Resource> textureUploadHeap;
+
+    D3D12_RESOURCE_DESC textureDesc = {};
+    textureDesc.MipLevels = 1;
+    textureDesc.Format = format;
+    textureDesc.Width = width;
+    textureDesc.Height = height;
+    textureDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+    textureDesc.DepthOrArraySize = 1;
+    textureDesc.SampleDesc.Count = 1;
+    textureDesc.SampleDesc.Quality = 0;
+    textureDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+
+    D3D12_HEAP_PROPERTIES heapProperty = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+    ThrowIfFailed(m_device->CreateCommittedResource(
+        &heapProperty,
+        D3D12_HEAP_FLAG_NONE,
+        &textureDesc,
+        D3D12_RESOURCE_STATE_COPY_DEST,
+        nullptr,
+        IID_PPV_ARGS(&texture)));
+
+    const UINT64 uploadBufferSize = GetRequiredIntermediateSize(texture.Get(), 0, 1);
+
+    // Create the GPU upload buffer.
+    heapProperty = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+    D3D12_RESOURCE_DESC resDesc = CD3DX12_RESOURCE_DESC::Buffer(uploadBufferSize);
+    ThrowIfFailed(m_device->CreateCommittedResource(
+        &heapProperty,
+        D3D12_HEAP_FLAG_NONE,
+        &resDesc,
+        D3D12_RESOURCE_STATE_GENERIC_READ,
+        nullptr,
+        IID_PPV_ARGS(&textureUploadHeap)));
+
+    // Copy data to the intermediate upload heap and then schedule a copy 
+    // from the upload heap to the Texture2D.
+    D3D12_SUBRESOURCE_DATA textureData = {};
+    textureData.pData = imageData;
+    textureData.RowPitch = width * 4;
+    textureData.SlicePitch = textureData.RowPitch * height;
+
+    UpdateSubresources(m_commandList.Get(), texture.Get(), textureUploadHeap.Get(), 0, 0, 1, &textureData);
+
+    D3D12_RESOURCE_BARRIER resBarrier = CD3DX12_RESOURCE_BARRIER::Transition(texture.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+    m_commandList->ResourceBarrier(1, &resBarrier);
+
+    D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+    srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+    srvDesc.Format = textureDesc.Format;
+    srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+    srvDesc.Texture2D.MipLevels = 1;
+    m_device->CreateShaderResourceView(texture.Get(), &srvDesc, m_srvHeap->GetCPUDescriptorHandleForHeapStart());
 }
 
 // Helper function for acquiring the first available hardware adapter that supports Direct3D 12.
