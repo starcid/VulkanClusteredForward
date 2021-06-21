@@ -69,6 +69,20 @@ const D3D12_INPUT_ELEMENT_DESC StandardVertexDescription[] =
     { "TANGENT",  0, DXGI_FORMAT_R32G32B32_FLOAT, 0, offsetof(Vertex, tangent), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
 };
 
+enum RootParameterIndex
+{
+    TransformUniformParam,
+    MaterialUniformParam,
+    LightUniformParam,
+    GlobalLightIndexBuffer,
+    LightGridBuffer,
+    DiffuseSRVBase,
+    DiffuseSamplerBase,
+    NormalSRVBase,
+    NormalSamplerBase,
+    RootParameterCount
+};
+
 D12Renderer::D12Renderer(GLFWwindow* win)
 	:Renderer(win)
 {
@@ -252,20 +266,6 @@ D12Renderer::D12Renderer(GLFWwindow* win)
         {
             featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_0;
         }
-
-        enum RootParameterIndex
-        {
-            TransformUniformParam,
-            MaterialUniformParam,
-            LightUniformParam,
-            GlobalLightIndexBuffer,
-            LightGridBuffer,
-            DiffuseSRVBase,
-            DiffuseSamplerBase,
-            NormalSRVBase,
-            NormalSamplerBase,
-            RootParameterCount
-        };
 
         // Allow input layout and deny unnecessary access to certain pipeline stages.
         D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags =
@@ -518,14 +518,14 @@ void D12Renderer::OnSceneExit()
 
 void D12Renderer::SetTexture(Texture* tex)
 {
-    m_commandList->SetGraphicsRootShaderResourceView(5, ((TextureDataDX12*)(tex->GetTextureData()))->GetTexture()->GetGPUVirtualAddress());
-    m_commandList->SetGraphicsRootDescriptorTable(6, m_samplerHeap->GetGPUDescriptorHandleForHeapStart());
+    m_commandList->SetGraphicsRootShaderResourceView(RootParameterIndex::DiffuseSRVBase, ((TextureDataDX12*)(tex->GetTextureData()))->GetTexture()->GetGPUVirtualAddress());
+    m_commandList->SetGraphicsRootDescriptorTable(RootParameterIndex::DiffuseSamplerBase, m_samplerHeap->GetGPUDescriptorHandleForHeapStart());
 }
 
 void D12Renderer::SetNormalTexture(Texture* tex)
 {
-    m_commandList->SetGraphicsRootShaderResourceView(7, ((TextureDataDX12*)(tex->GetTextureData()))->GetTexture()->GetGPUVirtualAddress());
-    m_commandList->SetGraphicsRootDescriptorTable(8, m_samplerHeap->GetGPUDescriptorHandleForHeapStart());
+    m_commandList->SetGraphicsRootShaderResourceView(RootParameterIndex::NormalSRVBase, ((TextureDataDX12*)(tex->GetTextureData()))->GetTexture()->GetGPUVirtualAddress());
+    m_commandList->SetGraphicsRootDescriptorTable(RootParameterIndex::NormalSamplerBase, m_samplerHeap->GetGPUDescriptorHandleForHeapStart());
 }
 
 void D12Renderer::UpdateMaterial(Material* mat)
