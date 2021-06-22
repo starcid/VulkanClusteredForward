@@ -71,16 +71,10 @@ const D3D12_INPUT_ELEMENT_DESC StandardVertexDescription[] =
 
 enum RootParameterIndex
 {
-    TransformUniformParam,
-    MaterialUniformParam,
-    LightUniformParam,
-    GlobalLightIndexBuffer,
-    LightGridBuffer,
-    DiffuseSRVBase,
-    DiffuseSamplerBase,
-    NormalSRVBase,
-    NormalSamplerBase,
-    RootParameterCount
+    CbvParameter,       //b0,b1,b2
+    UavSrvParameter,    //u0,u1,t0,t1
+    SamplerParameter,    //s0,s1
+    RootParameterCount,
 };
 
 D12Renderer::D12Renderer(GLFWwindow* win)
@@ -192,6 +186,8 @@ D12Renderer::D12Renderer(GLFWwindow* win)
         rtvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
         ThrowIfFailed(m_device->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(&m_rtvHeap)));
 
+        m_rtvDescriptorSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+
         // Describe and create a depth stencil view (DSV) descriptor heap.
         // Each frame has its own depth stencils (to write shadows onto) 
         // and then there is one for the scene itself.
@@ -201,37 +197,33 @@ D12Renderer::D12Renderer(GLFWwindow* win)
         dsvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
         ThrowIfFailed(m_device->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(&m_dsvHeap)));
 
-        // Describe and create a shader resource view (SRV) heap for the texture.
-        D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
-        srvHeapDesc.NumDescriptors = 1;
-        srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-        srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-        ThrowIfFailed(m_device->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(&m_srvHeap)));
+        // CBV heap b0 b1 b2
+        const UINT cbvCount = frameCount * 3;
+        D3D12_DESCRIPTOR_HEAP_DESC cbvHeapDesc = {};
+        cbvHeapDesc.NumDescriptors = cbvCount;
+        cbvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+        cbvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+        ThrowIfFailed(m_device->CreateDescriptorHeap(&cbvHeapDesc, IID_PPV_ARGS(&m_cbvHeap)));
+        NAME_D3D12_OBJECT(m_cbvHeap);
 
-        // Describe and create a shader resource view (SRV) and constant 
-        // buffer view (CBV) descriptor heap.  Heap layout: null views, 
-        // object diffuse + normal textures views, frame 1's shadow buffer, 
-        // frame 1's 2x constant buffer, frame 2's shadow buffer, frame 2's 
-        // 2x constant buffers, etc...
-        const UINT nullSrvCount = 2;        // Null descriptors are needed for out of bounds behavior reads.
-        const UINT cbvCount = frameCount * 2;
-        const UINT srvCount = MAX_MATERIAL_NUM + (frameCount * 1);
-        D3D12_DESCRIPTOR_HEAP_DESC cbvSrvHeapDesc = {};
-        cbvSrvHeapDesc.NumDescriptors = nullSrvCount + cbvCount + srvCount;
-        cbvSrvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-        cbvSrvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-        ThrowIfFailed(m_device->CreateDescriptorHeap(&cbvSrvHeapDesc, IID_PPV_ARGS(&m_cbvSrvHeap)));
-        NAME_D3D12_OBJECT(m_cbvSrvHeap);
+        // UAV u0 u1
+        // SRV t0 t1
+        const UINT srvCount = frameCount * 2;
+        const UINT uavCount = frameCount * 2;
+        D3D12_DESCRIPTOR_HEAP_DESC uavSrvHeapDesc = {};
+        uavSrvHeapDesc.NumDescriptors = srvCount + uavCount;
+        uavSrvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+        uavSrvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+        ThrowIfFailed(m_device->CreateDescriptorHeap(&uavSrvHeapDesc, IID_PPV_ARGS(&m_uavSrvHeap)));
+        NAME_D3D12_OBJECT(m_uavSrvHeap);
 
-        // Describe and create a sampler descriptor heap.
+        // sample s0 s1
         D3D12_DESCRIPTOR_HEAP_DESC samplerHeapDesc = {};
-        samplerHeapDesc.NumDescriptors = 2;        // One clamp and one wrap sampler.
+        samplerHeapDesc.NumDescriptors = frameCount * 2;
         samplerHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER;
         samplerHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
         ThrowIfFailed(m_device->CreateDescriptorHeap(&samplerHeapDesc, IID_PPV_ARGS(&m_samplerHeap)));
         NAME_D3D12_OBJECT(m_samplerHeap);
-
-        m_rtvDescriptorSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
     }
 
     // Create a single sampler
@@ -251,6 +243,15 @@ D12Renderer::D12Renderer(GLFWwindow* win)
         sampleDesc.MaxLOD = D3D12_FLOAT32_MAX;
 
         m_device->CreateSampler(&sampleDesc, m_samplerHeap->GetCPUDescriptorHandleForHeapStart());
+    }
+
+    // Create const buffers
+    {
+        CreateConstBuffer(&m_transformConstBufferBegin, sizeof(TransformData), m_transformConstBuffer);
+        CreateConstBuffer(&m_materialConstBufferBegin, sizeof(MaterialData), m_materialConstBuffer);
+        CreateConstBuffer(&m_lightConstBufferBegin, sizeof(PointLightData) * MAX_LIGHT_NUM, m_lightConstBuffer);
+        CreateUAVBuffer(&m_globalLightIndexUAVBufferBegin, sizeof(uint32_t), MAX_LIGHT_NUM * CLUSTE_NUM, m_globalLightIndexUAVBuffer);
+        CreateUAVBuffer(&m_lightGridUAVBufferBegin, sizeof(LightGrid), CLUSTE_NUM, m_lightGridUAVBuffer);
     }
 
     ThrowIfFailed(m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_commandAllocator)));
@@ -273,26 +274,34 @@ D12Renderer::D12Renderer(GLFWwindow* win)
             D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
             D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS |
             D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS;
+        
+        // b0 b1 b2
+        D3D12_DESCRIPTOR_RANGE Param0Ranges[1];
+        Param0Ranges[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
+        Param0Ranges[0].BaseShaderRegister = 0;
+        Param0Ranges[0].NumDescriptors = 3;
+
+        // u0 u1 t0 t1
+        D3D12_DESCRIPTOR_RANGE Param1Ranges[2];
+        Param1Ranges[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
+        Param1Ranges[0].BaseShaderRegister = 0;
+        Param1Ranges[0].NumDescriptors = 2;
+        Param1Ranges[1].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+        Param1Ranges[1].BaseShaderRegister = 0;
+        Param1Ranges[1].NumDescriptors = 2;
+
+        // s0 s1
+        D3D12_DESCRIPTOR_RANGE Param2Ranges[1];
+        Param2Ranges[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER;
+        Param2Ranges[0].BaseShaderRegister = 0;
+        Param2Ranges[0].NumDescriptors = 2;
+
 
         // A single 32-bit constant root parameter that is used by the vertex shader.
         CD3DX12_ROOT_PARAMETER rootParameters[RootParameterIndex::RootParameterCount];
-        rootParameters[RootParameterIndex::TransformUniformParam].InitAsConstantBufferView(0, 0, D3D12_SHADER_VISIBILITY_ALL);
-        rootParameters[RootParameterIndex::MaterialUniformParam].InitAsConstantBufferView(0, 0, D3D12_SHADER_VISIBILITY_ALL);
-        rootParameters[RootParameterIndex::LightUniformParam].InitAsConstantBufferView(0, 0, D3D12_SHADER_VISIBILITY_ALL);
-        rootParameters[RootParameterIndex::GlobalLightIndexBuffer].InitAsConstantBufferView(0, 0, D3D12_SHADER_VISIBILITY_PIXEL);
-        rootParameters[RootParameterIndex::LightGridBuffer].InitAsConstantBufferView(0, 0, D3D12_SHADER_VISIBILITY_PIXEL);
-
-        // Texture 1
-        CD3DX12_DESCRIPTOR_RANGE texture1Range(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
-        CD3DX12_DESCRIPTOR_RANGE texture1SamplerRange(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, 1, 0);
-        rootParameters[RootParameterIndex::DiffuseSRVBase].InitAsDescriptorTable(1, &texture1Range, D3D12_SHADER_VISIBILITY_PIXEL);
-        rootParameters[RootParameterIndex::DiffuseSamplerBase].InitAsDescriptorTable(1, &texture1SamplerRange, D3D12_SHADER_VISIBILITY_PIXEL);
-
-        // Texture 2
-        CD3DX12_DESCRIPTOR_RANGE texture2Range(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1);
-        CD3DX12_DESCRIPTOR_RANGE texture2SamplerRange(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, 1, 1);
-        rootParameters[RootParameterIndex::NormalSRVBase].InitAsDescriptorTable(1, &texture2Range, D3D12_SHADER_VISIBILITY_PIXEL);
-        rootParameters[RootParameterIndex::NormalSamplerBase].InitAsDescriptorTable(1, &texture2SamplerRange, D3D12_SHADER_VISIBILITY_PIXEL);
+        rootParameters[RootParameterIndex::CbvParameter].InitAsDescriptorTable(1, Param0Ranges, D3D12_SHADER_VISIBILITY_ALL);
+        rootParameters[RootParameterIndex::UavSrvParameter].InitAsDescriptorTable(2, Param1Ranges, D3D12_SHADER_VISIBILITY_PIXEL);
+        rootParameters[RootParameterIndex::SamplerParameter].InitAsDescriptorTable(1, Param2Ranges, D3D12_SHADER_VISIBILITY_PIXEL);
 
         CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDescription;
         rootSignatureDescription.Init(_countof(rootParameters), rootParameters, 0, nullptr, rootSignatureFlags);
@@ -384,8 +393,8 @@ D12Renderer::D12Renderer(GLFWwindow* win)
 
         D3D12_CLEAR_VALUE clearValue;    // Performance tip: Tell the runtime at resource creation the desired clear value.
         clearValue.Format = DXGI_FORMAT_D32_FLOAT;
-        clearValue.DepthStencil.Depth = 1.0f;
-        clearValue.DepthStencil.Stencil = 0;
+        clearValue.DepthStencil.Depth = clear_depth;
+        clearValue.DepthStencil.Stencil = clear_stencil;
 
         CD3DX12_HEAP_PROPERTIES heapProps(D3D12_HEAP_TYPE_DEFAULT);
         ThrowIfFailed(m_device->CreateCommittedResource(
@@ -419,6 +428,23 @@ void D12Renderer::RenderBegin()
 
     // Set necessary state.
     m_commandList->SetGraphicsRootSignature(m_rootSignature.Get());
+
+    // bind root signature with descript heaps
+    ID3D12DescriptorHeap* ppHeaps[] = { m_cbvHeap.Get(), m_uavSrvHeap.Get(), m_samplerHeap.Get() };
+    m_commandList->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
+
+    // b0 b1 b2
+    CD3DX12_GPU_DESCRIPTOR_HANDLE cbvHandle(m_cbvHeap->GetGPUDescriptorHandleForHeapStart(), m_frameIndex * 3, frameCount * 3);
+    m_commandList->SetGraphicsRootDescriptorTable(RootParameterIndex::CbvParameter, cbvHandle);
+
+    // u0 u1 t0 t1
+    CD3DX12_GPU_DESCRIPTOR_HANDLE uavSrvHandle(m_uavSrvHeap->GetGPUDescriptorHandleForHeapStart(), m_frameIndex * 4, frameCount * 4);
+    m_commandList->SetGraphicsRootDescriptorTable(RootParameterIndex::UavSrvParameter, uavSrvHandle);
+
+    // s0 s1
+    CD3DX12_GPU_DESCRIPTOR_HANDLE samplerHandle(m_samplerHeap->GetGPUDescriptorHandleForHeapStart(), m_frameIndex * 2, frameCount * 2);
+    m_commandList->SetGraphicsRootDescriptorTable(RootParameterIndex::SamplerParameter, samplerHandle);
+
     m_commandList->RSSetViewports(1, &m_viewport);
     m_commandList->RSSetScissorRects(1, &m_scissorRect);
 
@@ -430,19 +456,15 @@ void D12Renderer::RenderBegin()
     m_commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
 
     // Clear the render targets.
-    FLOAT clearColor[] = { 0.4f, 0.6f, 0.9f, 1.0f };
-    m_commandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
-    m_commandList->ClearDepthStencilView(m_dsvHeap->GetCPUDescriptorHandleForHeapStart(), D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
+    m_commandList->ClearRenderTargetView(rtvHandle, clear_color, 0, nullptr);
+    m_commandList->ClearDepthStencilView(m_dsvHeap->GetCPUDescriptorHandleForHeapStart(), D3D12_CLEAR_FLAG_DEPTH, clear_depth, clear_stencil, 0, nullptr);
 
     /// default triangle list
     m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 }
 
 void D12Renderer::RenderEnd()
-{/*
-    m_commandList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
-    m_commandList->DrawInstanced(3, 1, 0, 0);*/
-
+{
     // Indicate that the back buffer will now be used to present.
     m_commandList->ResourceBarrier(1, &m_transtionBarrier);
     m_transtionBarrier = CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
@@ -503,34 +525,119 @@ void D12Renderer::Draw(GeoData* geoData, std::vector<Material*>& mats)
 
 void D12Renderer::UpdateCameraMatrix()
 {
-    
+    SetViewMatrix(*camera->GetViewMatrix());
+    SetProjMatrix(*camera->GetProjectMatrix());
+    SetProjViewMatrix(*camera->GetViewProjectMatrix());
 }
 
 void D12Renderer::UpdateTransformMatrix(TransformEntity* transform)
 {
-    
+    glm::mat4x4* modelViewMatrix = transform->UpdateMatrix();
+    glm::mat4x4 mvp = (*camera->GetViewProjectMatrix()) * (*modelViewMatrix);
+    SetMvpMatrix(mvp);
+    SetModelMatrix(*modelViewMatrix);
+
+    glm::mat4 world_model = glm::inverse(*modelViewMatrix);
+    glm::vec3 cam_pos = camera->GetPosition();
+    glm::vec4 cam_pos_obj = glm::vec4(cam_pos.x, cam_pos.y, cam_pos.z, 1.0f) * world_model;
+    glm::vec3 cam_pos_obj3 = glm::vec3(cam_pos_obj.x, cam_pos_obj.y, cam_pos_obj.z);
+    SetCamPos(cam_pos_obj3);
+
+    for (int i = 0; i < light_infos.size(); i++)
+    {
+        glm::vec4 light_pos_obj = glm::vec4(light_infos[i].pos.x, light_infos[i].pos.y, light_infos[i].pos.z, 1.0f) * world_model;
+        SetLightPos(light_pos_obj, i);
+    }
+}
+
+void D12Renderer::AddLight(PointLight* light)
+{
+    Renderer::AddLight(light);
+
+    int idx = light_infos.size() - 1;
+    PointLightData& lightData = light_infos[idx];
+    memcpy((PointLightData*)m_lightConstBufferBegin + idx, &lightData, sizeof(PointLightData));
+}
+
+void D12Renderer::ClearLight()
+{
+    Renderer::ClearLight();
 }
 
 void D12Renderer::OnSceneExit()
 {
-	
+    ClearLight();
+}
+
+void D12Renderer::SetMvpMatrix(glm::mat4x4& mvpMtx)
+{
+    TransformData* transData = (TransformData*)m_transformConstBufferBegin;
+    memcpy(&transData->mvp, &mvpMtx, sizeof(glm::mat4x4));
+}
+
+void D12Renderer::SetModelMatrix(glm::mat4x4& mtx)
+{
+    TransformData* transData = (TransformData*)m_transformConstBufferBegin;
+    memcpy(&transData->model, &mtx, sizeof(glm::mat4x4));
+}
+
+void D12Renderer::SetViewMatrix(glm::mat4x4& mtx)
+{
+    TransformData* transData = (TransformData*)m_transformConstBufferBegin;
+    memcpy(&transData->view, &mtx, sizeof(glm::mat4x4));
+}
+
+void D12Renderer::SetProjMatrix(glm::mat4x4& mtx)
+{
+    TransformData* transData = (TransformData*)m_transformConstBufferBegin;
+    memcpy(&transData->proj, &mtx, sizeof(glm::mat4x4));
+}
+
+void D12Renderer::SetProjViewMatrix(glm::mat4x4& mtx)
+{
+    TransformData* transData = (TransformData*)m_transformConstBufferBegin;
+    memcpy(&transData->proj_view, &mtx, sizeof(glm::mat4x4));
+}
+
+void D12Renderer::SetCamPos(glm::vec3& pos)
+{
+    float zNear = camera->GetNearDistance();
+    float zFar = camera->GetFarDistance();
+    TransformData* transData = (TransformData*)m_transformConstBufferBegin;
+    memcpy(&transData->cam_pos, &pos, sizeof(glm::vec3));
+    transData->zNear = zNear;
+    transData->zFar = zFar;
+    transData->scale = (float)CLUSTE_Z / std::log2f(zFar / zNear);
+    transData->bias = -((float)CLUSTE_Z * std::log2f(zNear) / std::log2f(zFar / zNear));
+    transData->isClusteShading = false;
+}
+
+void D12Renderer::SetLightPos(glm::vec4& pos, int idx)
+{
+    TransformData* transData = (TransformData*)m_transformConstBufferBegin;
+    memcpy(&transData->light_pos[idx], &pos, sizeof(glm::vec4));
 }
 
 void D12Renderer::SetTexture(Texture* tex)
 {
-    m_commandList->SetGraphicsRootShaderResourceView(RootParameterIndex::DiffuseSRVBase, ((TextureDataDX12*)(tex->GetTextureData()))->GetTexture()->GetGPUVirtualAddress());
-    m_commandList->SetGraphicsRootDescriptorTable(RootParameterIndex::DiffuseSamplerBase, m_samplerHeap->GetGPUDescriptorHandleForHeapStart());
+    if (tex == NULL)
+        m_diffuseTex = default_tex;
+    else
+        m_diffuseTex = tex;
 }
 
 void D12Renderer::SetNormalTexture(Texture* tex)
 {
-    m_commandList->SetGraphicsRootShaderResourceView(RootParameterIndex::NormalSRVBase, ((TextureDataDX12*)(tex->GetTextureData()))->GetTexture()->GetGPUVirtualAddress());
-    m_commandList->SetGraphicsRootDescriptorTable(RootParameterIndex::NormalSamplerBase, m_samplerHeap->GetGPUDescriptorHandleForHeapStart());
+    if (tex == NULL)
+        m_normalTex = default_tex;
+    else
+        m_normalTex = tex;
 }
 
 void D12Renderer::UpdateMaterial(Material* mat)
 {
-    
+    ///  material update
+        
 }
 
 void D12Renderer::CreateTexture(void* imageData, int width, int height, DXGI_FORMAT format, ComPtr<ID3D12Resource>& texture)
@@ -587,7 +694,7 @@ void D12Renderer::CreateTexture(void* imageData, int width, int height, DXGI_FOR
     srvDesc.Format = textureDesc.Format;
     srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
     srvDesc.Texture2D.MipLevels = 1;
-    m_device->CreateShaderResourceView(texture.Get(), &srvDesc, m_srvHeap->GetCPUDescriptorHandleForHeapStart());
+    m_device->CreateShaderResourceView(texture.Get(), &srvDesc, m_uavSrvHeap->GetCPUDescriptorHandleForHeapStart());
 }
 
 // Helper function for acquiring the first available hardware adapter that supports Direct3D 12.
@@ -672,6 +779,69 @@ void D12Renderer::CreateIndexBuffer(void* idata, uint32_t single, uint32_t lengt
     ibv.BufferLocation = indicebuf->GetGPUVirtualAddress();
     ibv.Format = DXGI_FORMAT_R32_UINT;
     ibv.SizeInBytes = indiceBufferSize;
+}
+
+int D12Renderer::CalcConstantBufferByteSize(int byteSize)
+{
+    return (byteSize + 255) & (~255);
+}
+
+void D12Renderer::CreateConstBuffer(void** data, uint32_t size, ComPtr<ID3D12Resource>& constbuf)
+{
+    const UINT constantBufferSize = CalcConstantBufferByteSize(size);    // CB size is required to be 256-byte aligned.
+
+    D3D12_HEAP_PROPERTIES heapProperty = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+    D3D12_RESOURCE_DESC resDesc = CD3DX12_RESOURCE_DESC::Buffer(constantBufferSize);
+
+    ThrowIfFailed(m_device->CreateCommittedResource(
+        &heapProperty,
+        D3D12_HEAP_FLAG_NONE,
+        &resDesc,
+        D3D12_RESOURCE_STATE_GENERIC_READ,
+        nullptr,
+        IID_PPV_ARGS(&constbuf)));
+
+    // Describe and create a constant buffer view.
+    D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
+    cbvDesc.BufferLocation = constbuf->GetGPUVirtualAddress();
+    cbvDesc.SizeInBytes = constantBufferSize;
+    m_device->CreateConstantBufferView(&cbvDesc, m_cbvHeap->GetCPUDescriptorHandleForHeapStart());
+
+    // Map and initialize the constant buffer. We don't unmap this until the
+    // app closes. Keeping things mapped for the lifetime of the resource is okay.
+    CD3DX12_RANGE readRange(0, 0);        // We do not intend to read from this resource on the CPU.
+    ThrowIfFailed(constbuf->Map(0, &readRange, reinterpret_cast<void**>(data)));
+}
+
+void D12Renderer::CreateUAVBuffer(void** data, uint32_t single, uint32_t length, ComPtr<ID3D12Resource>& uavbuf)
+{
+    const UINT uavBufferSize = single * length;
+
+    D3D12_HEAP_PROPERTIES heapProperty = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+    D3D12_RESOURCE_DESC resDesc = CD3DX12_RESOURCE_DESC::Buffer(uavBufferSize);
+
+    ThrowIfFailed(m_device->CreateCommittedResource(
+        &heapProperty,
+        D3D12_HEAP_FLAG_NONE,
+        &resDesc,
+        D3D12_RESOURCE_STATE_GENERIC_READ,
+        nullptr,
+        IID_PPV_ARGS(&uavbuf)));
+
+    // Describe and create a constant buffer view.
+    D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
+    uavDesc.Format = DXGI_FORMAT_UNKNOWN;
+    uavDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
+    uavDesc.Buffer.CounterOffsetInBytes = 0;
+    uavDesc.Buffer.NumElements = length;
+    uavDesc.Buffer.StructureByteStride = single;
+    uavDesc.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_NONE;
+    m_device->CreateUnorderedAccessView(uavbuf.Get(), nullptr, &uavDesc, m_uavSrvHeap->GetCPUDescriptorHandleForHeapStart());
+
+    // Map and initialize the constant buffer. We don't unmap this until the
+    // app closes. Keeping things mapped for the lifetime of the resource is okay.
+    CD3DX12_RANGE readRange(0, 0);        // We do not intend to read from this resource on the CPU.
+    ThrowIfFailed(uavbuf->Map(0, &readRange, reinterpret_cast<void**>(data)));
 }
 
 ComPtr<ID3D12Resource> D12Renderer::CreateDefaultBuffer(ComPtr<ID3D12Device>& device, ComPtr<ID3D12GraphicsCommandList>& cmdList, const void* initData, UINT64 byteSize, Microsoft::WRL::ComPtr<ID3D12Resource>& uploadBuffer)

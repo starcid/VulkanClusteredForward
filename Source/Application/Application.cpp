@@ -109,7 +109,6 @@ void Application::CreateRenderer(GLFWwindow* window)
 	VulkanRenderer* vRenderer = new VulkanRenderer(window);
 	renderer = vRenderer;
 
-	vRenderer->SetClearColor({ 0.0f, 0.0f, 0.0f, 1.0f });
 	std::string tex_path = "Data/shader/default.png";
 	vRenderer->SetDefaultTex(tex_path);
 

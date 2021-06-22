@@ -29,7 +29,7 @@ bool SampleScene::OnEnter()
 	///glm::vec3 rotate = glm::vec3(-90, 0, 0);
 	///model->SetRotation(rotate);
 	//model->LoadTestData();
-	VulkanRenderer* vRenderer = (VulkanRenderer*)Application::Inst()->GetRenderer();
+	Renderer* renderer = Application::Inst()->GetRenderer();
 	for (int i = 0; i < MAX_LIGHT_NUM; i++)
 	{
 		int y = i % 2;
@@ -47,7 +47,7 @@ bool SampleScene::OnEnter()
 		light[i]->SetAttenuationConstant(1.0f);
 		light[i]->SetAttenuationLinear(0);
 		light[i]->SetAttenuationExp(0.00001);
-		vRenderer->AddLight(light[i]);
+		renderer->AddLight(light[i]);
 	}
 
 	return true;

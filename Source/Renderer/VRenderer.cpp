@@ -83,14 +83,6 @@ VulkanRenderer::VulkanRenderer(GLFWwindow* win)
 	}
 
 	CreateSemaphores();
-
-	clear_color = { 0.0f, 0.0f, 0.0f, 1.0f };
-	default_tex = NULL;
-}
-
-void VulkanRenderer::SetDefaultTex(std::string& path)
-{
-	default_tex = new Texture(path);
 }
 
 VulkanRenderer::~VulkanRenderer()
@@ -2252,20 +2244,10 @@ void VulkanRenderer::DestroyTextureSampler(VkSampler* sampler)
 
 void VulkanRenderer::AddLight(PointLight* light)
 {
-	PointLightData lightData;
-	lightData.color = light->GetColor();
-	lightData.pos = light->GetPosition();
-	lightData.radius = light->GetRadius();
-	lightData.enabled = 1;
-	lightData.ambient_intensity = light->GetAmbientIntensity();
-	lightData.diffuse_intensity = light->GetDiffuseIntensity();
-	lightData.specular_intensity = light->GetSpecularIntensity();
-	lightData.attenuation_constant = light->GetAttenuationConstant();
-	lightData.attenuation_linear = light->GetAttenuationLinear();
-	lightData.attenuation_exp = light->GetAttenuationExp();
-	light_infos.push_back(lightData);
+	Renderer::AddLight(light);
 
 	int idx = light_infos.size() - 1;
+	PointLightData& lightData = light_infos[idx];
 	memcpy(light_uniform_buffer_datas[idx], &lightData, sizeof(PointLightData));
 
 	///if (isClusteShading)
@@ -2294,7 +2276,7 @@ void VulkanRenderer::AddLight(PointLight* light)
 
 void VulkanRenderer::ClearLight()
 {
-	light_infos.clear();
+	Renderer::ClearLight();
 }
 
 void VulkanRenderer::SetScreenToViewData(ScreenToView* stv)
@@ -2422,8 +2404,11 @@ void VulkanRenderer::RenderBegin()
 	renderPassInfo.renderArea.extent = swap_chain_extent;
 
 	std::array<VkClearValue, 2> clearValues = {};
-	clearValues[0].color = clear_color.color;
-	clearValues[1].depthStencil = { 1.0f, 0 };
+	clearValues[0].color.float32[0] = clear_color[0];
+	clearValues[0].color.float32[1] = clear_color[1];
+	clearValues[0].color.float32[2] = clear_color[2];
+	clearValues[0].color.float32[3] = clear_color[3];
+	clearValues[1].depthStencil = { clear_depth, clear_stencil };
 
 	renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
 	renderPassInfo.pClearValues = clearValues.data();

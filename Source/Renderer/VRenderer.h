@@ -44,10 +44,11 @@ public:
 	virtual void UpdateCameraMatrix();
 	virtual void UpdateTransformMatrix(TransformEntity* transform);
 
+	virtual void AddLight(PointLight* light);
+	virtual void ClearLight();
+
 	virtual void OnSceneExit();
 
-	inline void SetClearColor(VkClearValue c) { clear_color = c; }
-	void SetDefaultTex(std::string& path);
 	inline VkCommandBuffer CurrentCommandBuffer() { return command_buffers[active_command_buffer_idx]; }
 
 	void CreateVertexBuffer( void* vdata, uint32_t single, uint32_t length, VkBuffer& buffer, VkDeviceMemory& mem);
@@ -90,9 +91,6 @@ public:
 
 	void CreateTextureSampler(VkSampler* sampler);
 	void DestroyTextureSampler(VkSampler* sampler);
-
-	void AddLight(PointLight* light);
-	void ClearLight();
 
 	void UpdateComputeDescriptorSet();
 
@@ -218,16 +216,12 @@ private:
 	VkDeviceMemory depth_image_memory;
 	VkImageView depth_image_view;
 
-	VkClearValue clear_color;
 	uint32_t active_command_buffer_idx;
 	uint32_t last_command_buffer_idx;
 
 	VkDescriptorImageInfo* image_info;
 	VkDescriptorImageInfo* normal_image_info;
-	Texture* default_tex;
 
-	std::vector<PointLightData> light_infos;
-	
 	/// uniform buffers
 	VkBuffer transform_uniform_buffer;
 	VkDeviceMemory transform_uniform_buffer_memory;

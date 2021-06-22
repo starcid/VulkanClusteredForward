@@ -2,6 +2,7 @@
 #define __RENDERER_H__
 
 #include <iostream>
+#include <vector>
 
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
@@ -104,14 +105,16 @@ class Camera;
 class GeoData;
 class TransformEntity;
 class Material;
+class Texture;
+class PointLight;
 class Renderer
 {
 public:
 	const int MAX_MATERIAL_NUM = 50;
 	const int MAX_MODEL_NUM = 1000;
 
-	Renderer(GLFWwindow* win) : window(win) { glfwGetWindowSize(win, &winWidth, &winHeight); camera = NULL; }
-	virtual ~Renderer() {}
+	Renderer(GLFWwindow* win);
+	virtual ~Renderer();
 
 	virtual void RenderBegin() = 0;
 	virtual void RenderEnd() = 0;
@@ -126,14 +129,35 @@ public:
 
 	virtual void OnSceneExit() = 0;
 
+	virtual void AddLight(PointLight* light);
+	virtual void ClearLight();
+
 	void SetCamera(Camera* c) { camera = c; }
 	Camera* GetCamera() { return camera; }
+
+	void SetDefaultTex(std::string& path);
+
+	inline void SetClearColor(float r, float g, float b, float a) 
+	{ 
+		clear_color[0] = r; 
+		clear_color[1] = g;
+		clear_color[2] = b;
+		clear_color[3] = a;
+	}
+	inline void SetClearDepth(float depth, uint32_t stencil) { clear_depth = depth, clear_stencil = stencil; }
 
 protected:
 	Camera* camera;
 	GLFWwindow* window;
 	int winWidth;
 	int winHeight;
+
+	Texture* default_tex;
+	float clear_color[4];
+	float clear_depth;
+	uint32_t clear_stencil;
+
+	std::vector<PointLightData> light_infos;
 };
 
 #endif // !__RENDERER_H__
