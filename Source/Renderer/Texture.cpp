@@ -13,6 +13,7 @@
 TextureData::TextureData(std::string& path)
 {
 	ref_count = 0;
+	tex_id = -1;
 	LoadFromPath(path);
 }
 

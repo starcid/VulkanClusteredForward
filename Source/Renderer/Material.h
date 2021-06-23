@@ -13,7 +13,6 @@ public:
 	virtual ~Material();
 
 	void InitWithTinyMat(tinyobj::material_t* mat, std::string& basePath);
-	inline VkDescriptorSet* GetDescriptorSets() { return desc_sets; }
 
 	void PrepareToDraw() { desc_sets_updated = false; }
 	bool IsDescSetUpdated() { return desc_sets_updated; }
@@ -23,9 +22,13 @@ public:
 	inline Texture* GetDiffuseTexture() { return diffuse_tex; }
 	inline Texture* GetNormalTexture() { return bump_tex; }
 
-	inline VkDescriptorBufferInfo* GetBufferInfo() { return &material_uniform_buffer_info; }
+	inline int GetHasAlbedoMap() { return has_albedo_map; }
+	inline int GetHasNormalMap() { return has_normal_map; }
 
-private:
+protected:
+	virtual void InitPlatform() {}
+
+protected:
 	tinyobj::material_t* tiny_mat;
 
 	Texture* ambient_tex;
@@ -37,13 +40,10 @@ private:
 	Texture* alpha_tex;
 	Texture* reflection_tex;
 
-	bool desc_sets_updated;
-	VkDescriptorSet desc_sets[3];
+	int has_albedo_map;
+	int has_normal_map;
 
-	VkBuffer material_uniform_buffer;
-	VkDeviceMemory material_uniform_buffer_memory;
-	VkDescriptorBufferInfo material_uniform_buffer_info;
-	void* material_uniform_buffer_data;
+	bool desc_sets_updated;
 };
 
 #endif // !__MATERIAL_H__

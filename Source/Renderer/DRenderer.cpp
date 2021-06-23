@@ -72,8 +72,10 @@ const D3D12_INPUT_ELEMENT_DESC StandardVertexDescription[] =
 enum RootParameterIndex
 {
     CbvParameter,       //b0,b1,b2
-    UavSrvParameter,    //u0,u1,t0,t1
-    SamplerParameter,    //s0,s1
+    UavParameter,       //u0,u1
+    SrvParameter0,      //t0
+    SrvParameter1,      //t1
+    SamplerParameter,   //s0,s1
     RootParameterCount,
 };
 
@@ -82,6 +84,7 @@ D12Renderer::D12Renderer(GLFWwindow* win)
 {
 	HWND hwnd = glfwGetWin32Window(win);
     UINT dxgiFactoryFlags = 0;
+    m_texCount = 0;
 
 #if defined(_DEBUG)
     // Enable the debug layer (requires the Graphics Tools "optional feature").
@@ -197,8 +200,10 @@ D12Renderer::D12Renderer(GLFWwindow* win)
         dsvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
         ThrowIfFailed(m_device->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(&m_dsvHeap)));
 
-        // CBV heap b0 b1 b2
-        const UINT cbvCount = frameCount * 3;
+        m_dsvDescSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
+
+        // CBV heap b0 b1 b2, b2 light won't change
+        const UINT cbvCount = frameCount * 2 + 1;
         D3D12_DESCRIPTOR_HEAP_DESC cbvHeapDesc = {};
         cbvHeapDesc.NumDescriptors = cbvCount;
         cbvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
@@ -207,26 +212,36 @@ D12Renderer::D12Renderer(GLFWwindow* win)
         NAME_D3D12_OBJECT(m_cbvHeap);
 
         // UAV u0 u1
-        // SRV t0 t1
-        const UINT srvCount = frameCount * 2;
         const UINT uavCount = frameCount * 2;
-        D3D12_DESCRIPTOR_HEAP_DESC uavSrvHeapDesc = {};
-        uavSrvHeapDesc.NumDescriptors = srvCount + uavCount;
-        uavSrvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-        uavSrvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-        ThrowIfFailed(m_device->CreateDescriptorHeap(&uavSrvHeapDesc, IID_PPV_ARGS(&m_uavSrvHeap)));
-        NAME_D3D12_OBJECT(m_uavSrvHeap);
+        D3D12_DESCRIPTOR_HEAP_DESC uavHeapDesc = {};
+        uavHeapDesc.NumDescriptors = uavCount;
+        uavHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+        uavHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+        ThrowIfFailed(m_device->CreateDescriptorHeap(&uavHeapDesc, IID_PPV_ARGS(&m_uavHeap)));
+        NAME_D3D12_OBJECT(m_uavHeap);
+
+        // SRV t0 t1
+        const UINT srvCount = MAX_MATERIAL_NUM * 2 + 1; // normal & diffuse + default
+        D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
+        srvHeapDesc.NumDescriptors = srvCount;
+        srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+        srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+        ThrowIfFailed(m_device->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(&m_srvHeap)));
+        NAME_D3D12_OBJECT(m_srvHeap);
+
+        m_cbvUavSrvDescSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
         // sample s0 s1
         D3D12_DESCRIPTOR_HEAP_DESC samplerHeapDesc = {};
-        samplerHeapDesc.NumDescriptors = frameCount * 2;
+        samplerHeapDesc.NumDescriptors = 2;
         samplerHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER;
         samplerHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
         ThrowIfFailed(m_device->CreateDescriptorHeap(&samplerHeapDesc, IID_PPV_ARGS(&m_samplerHeap)));
         NAME_D3D12_OBJECT(m_samplerHeap);
+        m_samplerDescSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
     }
 
-    // Create a single sampler
+    // Create samplers
     {
         /// also can use static desc in root signature, here seperate
         D3D12_SAMPLER_DESC sampleDesc = {};
@@ -242,16 +257,38 @@ D12Renderer::D12Renderer(GLFWwindow* win)
         sampleDesc.MinLOD = 0.0f;
         sampleDesc.MaxLOD = D3D12_FLOAT32_MAX;
 
-        m_device->CreateSampler(&sampleDesc, m_samplerHeap->GetCPUDescriptorHandleForHeapStart());
+        CD3DX12_CPU_DESCRIPTOR_HANDLE hSamplerHeap(m_samplerHeap->GetCPUDescriptorHandleForHeapStart());
+        for (int i = 0; i < 2; i++)
+        {
+            m_device->CreateSampler(&sampleDesc, hSamplerHeap);
+            hSamplerHeap.Offset(m_samplerDescSize);
+        }
     }
 
     // Create const buffers
     {
-        CreateConstBuffer(&m_transformConstBufferBegin, sizeof(TransformData), m_transformConstBuffer);
-        CreateConstBuffer(&m_materialConstBufferBegin, sizeof(MaterialData), m_materialConstBuffer);
-        CreateConstBuffer(&m_lightConstBufferBegin, sizeof(PointLightData) * MAX_LIGHT_NUM, m_lightConstBuffer);
-        CreateUAVBuffer(&m_globalLightIndexUAVBufferBegin, sizeof(uint32_t), MAX_LIGHT_NUM * CLUSTE_NUM, m_globalLightIndexUAVBuffer);
-        CreateUAVBuffer(&m_lightGridUAVBufferBegin, sizeof(LightGrid), CLUSTE_NUM, m_lightGridUAVBuffer);
+        CD3DX12_CPU_DESCRIPTOR_HANDLE hCbvHeap(m_cbvHeap->GetCPUDescriptorHandleForHeapStart());
+        for (int i = 0; i < frameCount; i++)
+        {
+            CreateConstBuffer(&m_transformConstBufferBegin[i], sizeof(TransformData), m_transformConstBuffer[i], hCbvHeap);
+            hCbvHeap.Offset(m_cbvUavSrvDescSize);
+            CreateConstBuffer(&m_materialConstBufferBegin[i], sizeof(MaterialData), m_materialConstBuffer[i], hCbvHeap);
+            hCbvHeap.Offset(m_cbvUavSrvDescSize);
+            CreateConstBuffer(&m_lightConstBufferBegin[i], sizeof(PointLightData) * MAX_LIGHT_NUM, m_lightConstBuffer[i], hCbvHeap);
+            hCbvHeap.Offset(m_cbvUavSrvDescSize);
+        }
+    }
+
+    // Create UAV buffers
+    {
+        CD3DX12_CPU_DESCRIPTOR_HANDLE hUavHeap(m_uavHeap->GetCPUDescriptorHandleForHeapStart());
+        for (int i = 0; i < frameCount; i++)
+        {
+            CreateUAVBuffer(&m_globalLightIndexUAVBufferBegin[i], sizeof(uint32_t), MAX_LIGHT_NUM * CLUSTE_NUM, m_globalLightIndexUAVBuffer[i], hUavHeap);
+            hUavHeap.Offset(m_cbvUavSrvDescSize);
+            CreateUAVBuffer(&m_lightGridUAVBufferBegin[i], sizeof(LightGrid), CLUSTE_NUM, m_lightGridUAVBuffer[i], hUavHeap);
+            hUavHeap.Offset(m_cbvUavSrvDescSize);
+        }
     }
 
     ThrowIfFailed(m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_commandAllocator)));
@@ -281,27 +318,37 @@ D12Renderer::D12Renderer(GLFWwindow* win)
         Param0Ranges[0].BaseShaderRegister = 0;
         Param0Ranges[0].NumDescriptors = 3;
 
-        // u0 u1 t0 t1
+        // u0 u1
         D3D12_DESCRIPTOR_RANGE Param1Ranges[2];
         Param1Ranges[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
         Param1Ranges[0].BaseShaderRegister = 0;
         Param1Ranges[0].NumDescriptors = 2;
-        Param1Ranges[1].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-        Param1Ranges[1].BaseShaderRegister = 0;
-        Param1Ranges[1].NumDescriptors = 2;
+
+        // t0
+        D3D12_DESCRIPTOR_RANGE Param2Ranges[1];
+        Param2Ranges[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+        Param2Ranges[0].BaseShaderRegister = 0;
+        Param2Ranges[0].NumDescriptors = 1;
+
+        // t1
+        D3D12_DESCRIPTOR_RANGE Param3Ranges[1];
+        Param3Ranges[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+        Param3Ranges[0].BaseShaderRegister = 1;
+        Param3Ranges[0].NumDescriptors = 1;
 
         // s0 s1
-        D3D12_DESCRIPTOR_RANGE Param2Ranges[1];
-        Param2Ranges[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER;
-        Param2Ranges[0].BaseShaderRegister = 0;
-        Param2Ranges[0].NumDescriptors = 2;
-
+        D3D12_DESCRIPTOR_RANGE Param4Ranges[1];
+        Param4Ranges[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER;
+        Param4Ranges[0].BaseShaderRegister = 0;
+        Param4Ranges[0].NumDescriptors = 2;
 
         // A single 32-bit constant root parameter that is used by the vertex shader.
         CD3DX12_ROOT_PARAMETER rootParameters[RootParameterIndex::RootParameterCount];
         rootParameters[RootParameterIndex::CbvParameter].InitAsDescriptorTable(1, Param0Ranges, D3D12_SHADER_VISIBILITY_ALL);
-        rootParameters[RootParameterIndex::UavSrvParameter].InitAsDescriptorTable(2, Param1Ranges, D3D12_SHADER_VISIBILITY_PIXEL);
-        rootParameters[RootParameterIndex::SamplerParameter].InitAsDescriptorTable(1, Param2Ranges, D3D12_SHADER_VISIBILITY_PIXEL);
+        rootParameters[RootParameterIndex::UavParameter].InitAsDescriptorTable(1, Param1Ranges, D3D12_SHADER_VISIBILITY_PIXEL);
+        rootParameters[RootParameterIndex::SrvParameter0].InitAsDescriptorTable(1, Param2Ranges, D3D12_SHADER_VISIBILITY_PIXEL);
+        rootParameters[RootParameterIndex::SrvParameter1].InitAsDescriptorTable(1, Param3Ranges, D3D12_SHADER_VISIBILITY_PIXEL);
+        rootParameters[RootParameterIndex::SamplerParameter].InitAsDescriptorTable(1, Param4Ranges, D3D12_SHADER_VISIBILITY_PIXEL);
 
         CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDescription;
         rootSignatureDescription.Init(_countof(rootParameters), rootParameters, 0, nullptr, rootSignatureFlags);
@@ -430,20 +477,19 @@ void D12Renderer::RenderBegin()
     m_commandList->SetGraphicsRootSignature(m_rootSignature.Get());
 
     // bind root signature with descript heaps
-    ID3D12DescriptorHeap* ppHeaps[] = { m_cbvHeap.Get(), m_uavSrvHeap.Get(), m_samplerHeap.Get() };
+    ID3D12DescriptorHeap* ppHeaps[] = { m_cbvHeap.Get(), m_uavHeap.Get(), m_srvHeap.Get(), m_samplerHeap.Get() };
     m_commandList->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
 
     // b0 b1 b2
-    CD3DX12_GPU_DESCRIPTOR_HANDLE cbvHandle(m_cbvHeap->GetGPUDescriptorHandleForHeapStart(), m_frameIndex * 3, frameCount * 3);
+    CD3DX12_GPU_DESCRIPTOR_HANDLE cbvHandle(m_cbvHeap->GetGPUDescriptorHandleForHeapStart(), m_frameIndex * 3, m_cbvUavSrvDescSize);
     m_commandList->SetGraphicsRootDescriptorTable(RootParameterIndex::CbvParameter, cbvHandle);
 
-    // u0 u1 t0 t1
-    CD3DX12_GPU_DESCRIPTOR_HANDLE uavSrvHandle(m_uavSrvHeap->GetGPUDescriptorHandleForHeapStart(), m_frameIndex * 4, frameCount * 4);
-    m_commandList->SetGraphicsRootDescriptorTable(RootParameterIndex::UavSrvParameter, uavSrvHandle);
+    // u0 u1
+    CD3DX12_GPU_DESCRIPTOR_HANDLE uavHandle(m_uavHeap->GetGPUDescriptorHandleForHeapStart(), m_frameIndex * 2, m_cbvUavSrvDescSize);
+    m_commandList->SetGraphicsRootDescriptorTable(RootParameterIndex::UavParameter, uavHandle);
 
     // s0 s1
-    CD3DX12_GPU_DESCRIPTOR_HANDLE samplerHandle(m_samplerHeap->GetGPUDescriptorHandleForHeapStart(), m_frameIndex * 2, frameCount * 2);
-    m_commandList->SetGraphicsRootDescriptorTable(RootParameterIndex::SamplerParameter, samplerHandle);
+    m_commandList->SetGraphicsRootDescriptorTable(RootParameterIndex::SamplerParameter, m_samplerHeap->GetGPUDescriptorHandleForHeapStart());
 
     m_commandList->RSSetViewports(1, &m_viewport);
     m_commandList->RSSetScissorRects(1, &m_scissorRect);
@@ -556,7 +602,10 @@ void D12Renderer::AddLight(PointLight* light)
 
     int idx = light_infos.size() - 1;
     PointLightData& lightData = light_infos[idx];
-    memcpy((PointLightData*)m_lightConstBufferBegin + idx, &lightData, sizeof(PointLightData));
+    for (int i = 0; i < frameCount; i++)
+    {
+        memcpy((PointLightData*)m_lightConstBufferBegin[i] + idx, &lightData, sizeof(PointLightData));
+    }
 }
 
 void D12Renderer::ClearLight()
@@ -571,31 +620,31 @@ void D12Renderer::OnSceneExit()
 
 void D12Renderer::SetMvpMatrix(glm::mat4x4& mvpMtx)
 {
-    TransformData* transData = (TransformData*)m_transformConstBufferBegin;
+    TransformData* transData = (TransformData*)m_transformConstBufferBegin[m_frameIndex];
     memcpy(&transData->mvp, &mvpMtx, sizeof(glm::mat4x4));
 }
 
 void D12Renderer::SetModelMatrix(glm::mat4x4& mtx)
 {
-    TransformData* transData = (TransformData*)m_transformConstBufferBegin;
+    TransformData* transData = (TransformData*)m_transformConstBufferBegin[m_frameIndex];
     memcpy(&transData->model, &mtx, sizeof(glm::mat4x4));
 }
 
 void D12Renderer::SetViewMatrix(glm::mat4x4& mtx)
 {
-    TransformData* transData = (TransformData*)m_transformConstBufferBegin;
+    TransformData* transData = (TransformData*)m_transformConstBufferBegin[m_frameIndex];
     memcpy(&transData->view, &mtx, sizeof(glm::mat4x4));
 }
 
 void D12Renderer::SetProjMatrix(glm::mat4x4& mtx)
 {
-    TransformData* transData = (TransformData*)m_transformConstBufferBegin;
+    TransformData* transData = (TransformData*)m_transformConstBufferBegin[m_frameIndex];
     memcpy(&transData->proj, &mtx, sizeof(glm::mat4x4));
 }
 
 void D12Renderer::SetProjViewMatrix(glm::mat4x4& mtx)
 {
-    TransformData* transData = (TransformData*)m_transformConstBufferBegin;
+    TransformData* transData = (TransformData*)m_transformConstBufferBegin[m_frameIndex];
     memcpy(&transData->proj_view, &mtx, sizeof(glm::mat4x4));
 }
 
@@ -603,7 +652,7 @@ void D12Renderer::SetCamPos(glm::vec3& pos)
 {
     float zNear = camera->GetNearDistance();
     float zFar = camera->GetFarDistance();
-    TransformData* transData = (TransformData*)m_transformConstBufferBegin;
+    TransformData* transData = (TransformData*)m_transformConstBufferBegin[m_frameIndex];
     memcpy(&transData->cam_pos, &pos, sizeof(glm::vec3));
     transData->zNear = zNear;
     transData->zFar = zFar;
@@ -614,7 +663,7 @@ void D12Renderer::SetCamPos(glm::vec3& pos)
 
 void D12Renderer::SetLightPos(glm::vec4& pos, int idx)
 {
-    TransformData* transData = (TransformData*)m_transformConstBufferBegin;
+    TransformData* transData = (TransformData*)m_transformConstBufferBegin[m_frameIndex];
     memcpy(&transData->light_pos[idx], &pos, sizeof(glm::vec4));
 }
 
@@ -636,11 +685,20 @@ void D12Renderer::SetNormalTexture(Texture* tex)
 
 void D12Renderer::UpdateMaterial(Material* mat)
 {
-    ///  material update
-        
+    //  material update
+    MaterialData* matData = (MaterialData*)m_materialConstBufferBegin[m_frameIndex];
+    matData->has_albedo_map = mat->GetHasAlbedoMap();
+    matData->has_normal_map = mat->GetHasNormalMap();
+    
+    // t0 t1
+    CD3DX12_GPU_DESCRIPTOR_HANDLE srvT0Handle(m_srvHeap->GetGPUDescriptorHandleForHeapStart(), m_diffuseTex->GetTextureData()->GetTexId(), m_cbvUavSrvDescSize);
+    m_commandList->SetGraphicsRootDescriptorTable(RootParameterIndex::SrvParameter0, srvT0Handle);
+
+    CD3DX12_GPU_DESCRIPTOR_HANDLE srvT1Handle(m_srvHeap->GetGPUDescriptorHandleForHeapStart(), m_normalTex->GetTextureData()->GetTexId(), m_cbvUavSrvDescSize);
+    m_commandList->SetGraphicsRootDescriptorTable(RootParameterIndex::SrvParameter1, srvT1Handle);
 }
 
-void D12Renderer::CreateTexture(void* imageData, int width, int height, DXGI_FORMAT format, ComPtr<ID3D12Resource>& texture)
+int D12Renderer::CreateTexture(void* imageData, int width, int height, DXGI_FORMAT format, ComPtr<ID3D12Resource>& texture)
 {
     ComPtr<ID3D12Resource> textureUploadHeap;
 
@@ -689,12 +747,16 @@ void D12Renderer::CreateTexture(void* imageData, int width, int height, DXGI_FOR
     D3D12_RESOURCE_BARRIER resBarrier = CD3DX12_RESOURCE_BARRIER::Transition(texture.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
     m_commandList->ResourceBarrier(1, &resBarrier);
 
+    CD3DX12_CPU_DESCRIPTOR_HANDLE hSrvHeap(m_srvHeap->GetCPUDescriptorHandleForHeapStart(), m_texCount, m_cbvUavSrvDescSize);
     D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
     srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
     srvDesc.Format = textureDesc.Format;
     srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
     srvDesc.Texture2D.MipLevels = 1;
-    m_device->CreateShaderResourceView(texture.Get(), &srvDesc, m_uavSrvHeap->GetCPUDescriptorHandleForHeapStart());
+    m_device->CreateShaderResourceView(texture.Get(), &srvDesc, hSrvHeap);
+
+    m_texCount++;
+    return m_texCount - 1;
 }
 
 // Helper function for acquiring the first available hardware adapter that supports Direct3D 12.
@@ -786,7 +848,7 @@ int D12Renderer::CalcConstantBufferByteSize(int byteSize)
     return (byteSize + 255) & (~255);
 }
 
-void D12Renderer::CreateConstBuffer(void** data, uint32_t size, ComPtr<ID3D12Resource>& constbuf)
+void D12Renderer::CreateConstBuffer(void** data, uint32_t size, ComPtr<ID3D12Resource>& constbuf, CD3DX12_CPU_DESCRIPTOR_HANDLE& heapHandle)
 {
     const UINT constantBufferSize = CalcConstantBufferByteSize(size);    // CB size is required to be 256-byte aligned.
 
@@ -805,7 +867,7 @@ void D12Renderer::CreateConstBuffer(void** data, uint32_t size, ComPtr<ID3D12Res
     D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
     cbvDesc.BufferLocation = constbuf->GetGPUVirtualAddress();
     cbvDesc.SizeInBytes = constantBufferSize;
-    m_device->CreateConstantBufferView(&cbvDesc, m_cbvHeap->GetCPUDescriptorHandleForHeapStart());
+    m_device->CreateConstantBufferView(&cbvDesc, heapHandle);
 
     // Map and initialize the constant buffer. We don't unmap this until the
     // app closes. Keeping things mapped for the lifetime of the resource is okay.
@@ -813,7 +875,7 @@ void D12Renderer::CreateConstBuffer(void** data, uint32_t size, ComPtr<ID3D12Res
     ThrowIfFailed(constbuf->Map(0, &readRange, reinterpret_cast<void**>(data)));
 }
 
-void D12Renderer::CreateUAVBuffer(void** data, uint32_t single, uint32_t length, ComPtr<ID3D12Resource>& uavbuf)
+void D12Renderer::CreateUAVBuffer(void** data, uint32_t single, uint32_t length, ComPtr<ID3D12Resource>& uavbuf, CD3DX12_CPU_DESCRIPTOR_HANDLE& heapHandle)
 {
     const UINT uavBufferSize = single * length;
 
@@ -836,7 +898,7 @@ void D12Renderer::CreateUAVBuffer(void** data, uint32_t single, uint32_t length,
     uavDesc.Buffer.NumElements = length;
     uavDesc.Buffer.StructureByteStride = single;
     uavDesc.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_NONE;
-    m_device->CreateUnorderedAccessView(uavbuf.Get(), nullptr, &uavDesc, m_uavSrvHeap->GetCPUDescriptorHandleForHeapStart());
+    m_device->CreateUnorderedAccessView(uavbuf.Get(), nullptr, &uavDesc, heapHandle);
 
     // Map and initialize the constant buffer. We don't unmap this until the
     // app closes. Keeping things mapped for the lifetime of the resource is okay.

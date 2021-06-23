@@ -14,6 +14,7 @@
 
 #include "ClusteCulling.h"
 #include "GeoDataVK.h"
+#include "MaterialVK.h"
 
 /// prevent multi-define
 #define __ISPC_STRUCT_LightGrid__
@@ -1831,7 +1832,7 @@ void VulkanRenderer::CreateCommandBuffers()
 
 void VulkanRenderer::UpdateMaterial(Material* mat)
 {
-	VkDescriptorSet* descSets = mat->GetDescriptorSets();
+	VkDescriptorSet* descSets = ((MaterialVK*)mat)->GetDescriptorSets();
 
 	if (!mat->IsDescSetUpdated())
 	{
@@ -1852,7 +1853,7 @@ void VulkanRenderer::UpdateMaterial(Material* mat)
 		descriptorWrites[1].dstSet = descSets[active_command_buffer_idx];
 		descriptorWrites[1].descriptorCount = 1;
 		descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-		descriptorWrites[1].pBufferInfo = mat->GetBufferInfo();
+		descriptorWrites[1].pBufferInfo = ((MaterialVK*)mat)->GetBufferInfo();
 		descriptorWrites[1].dstArrayElement = 0;
 		descriptorWrites[1].dstBinding = 1;
 

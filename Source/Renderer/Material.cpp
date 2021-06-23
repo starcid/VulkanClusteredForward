@@ -7,25 +7,11 @@
 
 Material::Material()
 {
-	VulkanRenderer* vRenderer = (VulkanRenderer*)Application::Inst()->GetRenderer();
-	vRenderer->AllocateDescriptorSets(desc_sets);
 	desc_sets_updated = false;
-
-	/// material uniform buffer
-	VkDeviceSize bufferSize = sizeof(MaterialData);
-	vRenderer->CreateUniformBuffer(&material_uniform_buffer_data, (uint32_t)bufferSize, material_uniform_buffer, material_uniform_buffer_memory);
-	material_uniform_buffer_info.buffer = material_uniform_buffer;
-	material_uniform_buffer_info.offset = 0;
-	material_uniform_buffer_info.range = bufferSize;
 }
 
 Material::~Material()
 {
-	VulkanRenderer* vRenderer = (VulkanRenderer*)Application::Inst()->GetRenderer();
-	vRenderer->UnmapBufferMemory(material_uniform_buffer_memory);
-	vRenderer->CleanBuffer(material_uniform_buffer, material_uniform_buffer_memory);
-	vRenderer->FreeDescriptorSets(desc_sets);
-
 	if (ambient_tex != NULL)
 		delete ambient_tex;
 	if (diffuse_tex != NULL)
@@ -47,9 +33,8 @@ Material::~Material()
 void Material::InitWithTinyMat(tinyobj::material_t* mat, std::string& basePath)
 {
 	tiny_mat = mat;
-	MaterialData* matData = (MaterialData*)material_uniform_buffer_data;
-	matData->has_albedo_map = 0;
-	matData->has_normal_map = 0;
+	has_albedo_map = 0;
+	has_normal_map = 0;
 
 	/// load textures
 	std::string fullPath;
@@ -62,7 +47,7 @@ void Material::InitWithTinyMat(tinyobj::material_t* mat, std::string& basePath)
 	{
 		fullPath = basePath + "/" + mat->diffuse_texname;
 		diffuse_tex = new Texture(fullPath);
-		matData->has_albedo_map = 1;
+		has_albedo_map = 1;
 	}
 	if (mat->specular_texname != "")
 	{
@@ -81,7 +66,7 @@ void Material::InitWithTinyMat(tinyobj::material_t* mat, std::string& basePath)
 		if (mat->bump_texname != "")
 			fullPath = basePath + "/" + mat->bump_texname;
 		bump_tex = new Texture(fullPath);
-		matData->has_normal_map = 1;
+		has_normal_map = 1;
 	}
 	if (mat->displacement_texname != "")
 	{
@@ -98,4 +83,6 @@ void Material::InitWithTinyMat(tinyobj::material_t* mat, std::string& basePath)
 		fullPath = basePath + "/" + mat->reflection_texname;
 		reflection_tex = new Texture(fullPath);
 	}
+
+	InitPlatform();
 }

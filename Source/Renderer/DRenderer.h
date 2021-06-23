@@ -65,10 +65,10 @@ public:
 	void CreateVertexBuffer(void* vdata, uint32_t single, uint32_t length, ComPtr<ID3D12Resource>& vtxbuf, ComPtr<ID3D12Resource>&bufuploader, D3D12_VERTEX_BUFFER_VIEW& vbv);
 	void CreateIndexBuffer(void* idata, uint32_t single, uint32_t length, ComPtr<ID3D12Resource>& indicebuf, ComPtr<ID3D12Resource>& bufuploader, D3D12_INDEX_BUFFER_VIEW& ibv);
 
-	void CreateConstBuffer(void** data, uint32_t size, ComPtr<ID3D12Resource>& constbuf);
-	void CreateUAVBuffer(void** data, uint32_t single, uint32_t length, ComPtr<ID3D12Resource>& uavbuf);
+	void CreateConstBuffer(void** data, uint32_t size, ComPtr<ID3D12Resource>& constbuf, CD3DX12_CPU_DESCRIPTOR_HANDLE& heapHandle);
+	void CreateUAVBuffer(void** data, uint32_t single, uint32_t length, ComPtr<ID3D12Resource>& uavbuf, CD3DX12_CPU_DESCRIPTOR_HANDLE& heapHandle);
 
-	void CreateTexture(void* imageData, int width, int height, DXGI_FORMAT format, ComPtr<ID3D12Resource>& texture);
+	int CreateTexture(void* imageData, int width, int height, DXGI_FORMAT format, ComPtr<ID3D12Resource>& texture);
 
 private:
 	void GetHardwareAdapter(_In_ IDXGIFactory1* pFactory, _Outptr_result_maybenull_ IDXGIAdapter1** ppAdapter, bool requestHighPerformanceAdapter = false);
@@ -97,7 +97,8 @@ private:
 	ComPtr<ID3D12DescriptorHeap> m_rtvHeap;
 	ComPtr<ID3D12DescriptorHeap> m_dsvHeap;
 	ComPtr<ID3D12DescriptorHeap> m_cbvHeap;
-	ComPtr<ID3D12DescriptorHeap> m_uavSrvHeap;
+	ComPtr<ID3D12DescriptorHeap> m_uavHeap;
+	ComPtr<ID3D12DescriptorHeap> m_srvHeap;
 	ComPtr<ID3D12DescriptorHeap> m_samplerHeap;
 	ComPtr<ID3D12CommandAllocator> m_commandAllocator;
 	ComPtr<ID3D12RootSignature> m_rootSignature;
@@ -108,16 +109,18 @@ private:
 
 	CD3DX12_RESOURCE_BARRIER m_transtionBarrier;
 
-	ComPtr<ID3D12Resource> m_transformConstBuffer;
-	void* m_transformConstBufferBegin;
-	ComPtr<ID3D12Resource> m_materialConstBuffer;
-	void* m_materialConstBufferBegin;
-	ComPtr<ID3D12Resource> m_lightConstBuffer;
-	void* m_lightConstBufferBegin;
-	ComPtr<ID3D12Resource> m_globalLightIndexUAVBuffer;
-	void* m_globalLightIndexUAVBufferBegin;
-	ComPtr<ID3D12Resource> m_lightGridUAVBuffer;
-	void* m_lightGridUAVBufferBegin;
+	ComPtr<ID3D12Resource> m_transformConstBuffer[frameCount];
+	void* m_transformConstBufferBegin[frameCount];
+	ComPtr<ID3D12Resource> m_materialConstBuffer[frameCount];
+	void* m_materialConstBufferBegin[frameCount];
+	ComPtr<ID3D12Resource> m_lightConstBuffer[frameCount];
+	void* m_lightConstBufferBegin[frameCount];
+	ComPtr<ID3D12Resource> m_globalLightIndexUAVBuffer[frameCount];
+	void* m_globalLightIndexUAVBufferBegin[frameCount];
+	ComPtr<ID3D12Resource> m_lightGridUAVBuffer[frameCount];
+	void* m_lightGridUAVBufferBegin[frameCount];
+
+	int m_texCount;
 
 	CD3DX12_VIEWPORT m_viewport;
 	CD3DX12_RECT m_scissorRect;
@@ -126,6 +129,10 @@ private:
 	Texture* m_normalTex;
 
 	int m_rtvDescriptorSize;
+	int m_samplerDescSize;
+	int m_cbvUavSrvDescSize;
+	int m_dsvDescSize;
+
 	int m_frameIndex;
 };
 

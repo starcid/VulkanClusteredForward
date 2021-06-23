@@ -4,7 +4,7 @@
 #include <tiny_obj_loader.h>
 /*view https://github.com/syoyo/tinyobjloader for more informations*/
 
-#include "Material.h"
+#include "MaterialVK.h"
 #include "Model.h"
 
 #include "GeoData.h"

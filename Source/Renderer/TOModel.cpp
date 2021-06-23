@@ -59,7 +59,7 @@ bool TOModel::LoadFromPath(std::string path)
 	/// material instances
 	for (int i = 0; i < materials.size(); i++)
 	{
-		Material* mat = new Material();
+		Material* mat = new MaterialVK();
 		mat->InitWithTinyMat(&materials[i], basePath);
 		material_insts.push_back(mat);
 	}

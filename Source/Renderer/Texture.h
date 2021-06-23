@@ -25,6 +25,8 @@ public:
 	inline int32_t GetWidth() { return tex_width; }
 	inline int32_t GetHeight() { return tex_height; }
 
+	inline int GetTexId() { return tex_id; }
+
 protected:
 	stbi_uc* pixels;
 	int32_t tex_width;
@@ -34,6 +36,7 @@ protected:
 	uint32_t ref_count;
 
 	std::string tex_path;	/// load from path
+	int tex_id;
 };
 
 class Texture
