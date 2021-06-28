@@ -68,7 +68,50 @@ public:
 	void CreateConstBuffer(void** data, uint32_t size, ComPtr<ID3D12Resource>& constbuf, CD3DX12_CPU_DESCRIPTOR_HANDLE& heapHandle);
 	void CreateUAVBuffer(void** data, uint32_t single, uint32_t length, ComPtr<ID3D12Resource>& uavbuf, CD3DX12_CPU_DESCRIPTOR_HANDLE& heapHandle);
 
-	int CreateTexture(void* imageData, int width, int height, DXGI_FORMAT format, ComPtr<ID3D12Resource>& texture);
+	void CreateTexture(void* imageData, int width, int height, DXGI_FORMAT format, ComPtr<ID3D12Resource>& texture, int& texId);
+
+private:
+	struct VertexBufferCreateInfo
+	{
+		// input
+		void* vdata;
+		uint32_t single;
+		uint32_t length;
+
+		// output
+		ComPtr<ID3D12Resource>* pVtxBuf;
+		ComPtr<ID3D12Resource>* pBufUploader;
+		D3D12_VERTEX_BUFFER_VIEW* pVbv;
+	};
+	std::vector<D12Renderer::VertexBufferCreateInfo> m_vertexBufferCreateInfos;
+
+	struct IndexBufferCreateInfo
+	{
+		// input
+		void* idata;
+		uint32_t single;
+		uint32_t length;
+
+		// output
+		ComPtr<ID3D12Resource>* pIndicebuf;
+		ComPtr<ID3D12Resource>* pBufUploader;
+		D3D12_INDEX_BUFFER_VIEW* pIbv;
+	};
+	std::vector<D12Renderer::IndexBufferCreateInfo> m_indexBufferCreateInfos;
+
+	struct TextureCreateInfo
+	{
+		// input
+		void* imageData;
+		int width;
+		int height;
+		DXGI_FORMAT format;
+
+		// output
+		ComPtr<ID3D12Resource>* pTexture;
+		int* pTexId;
+	};
+	std::vector<D12Renderer::TextureCreateInfo> m_textureCreateInfos;
 
 private:
 	void GetHardwareAdapter(_In_ IDXGIFactory1* pFactory, _Outptr_result_maybenull_ IDXGIAdapter1** ppAdapter, bool requestHighPerformanceAdapter = false);
@@ -87,6 +130,8 @@ private:
 
 	int CalcConstantBufferByteSize(int byteSize);
 
+	void CreateResources();
+
 private:
 	ComPtr<IDXGISwapChain3> m_swapChain;
 	ComPtr<ID3D12Device> m_device;
@@ -100,7 +145,7 @@ private:
 	ComPtr<ID3D12DescriptorHeap> m_uavHeap;
 	ComPtr<ID3D12DescriptorHeap> m_srvHeap;
 	ComPtr<ID3D12DescriptorHeap> m_samplerHeap;
-	ComPtr<ID3D12CommandAllocator> m_commandAllocator;
+	ComPtr<ID3D12CommandAllocator> m_commandAllocators[frameCount];
 	ComPtr<ID3D12RootSignature> m_rootSignature;
 	ComPtr<ID3D12PipelineState> m_pipelineState;
 	ComPtr<ID3D12Resource> m_renderTargets[frameCount];
@@ -134,6 +179,12 @@ private:
 	int m_dsvDescSize;
 
 	int m_frameIndex;
+	int m_lastFrameIndex;
+
+	// Synchronization objects.
+	HANDLE m_fenceEvent;
+	ComPtr<ID3D12Fence> m_fence;
+	UINT64 m_fenceValues[frameCount];
 };
 
 #endif // !__D12_RENDERER_H__

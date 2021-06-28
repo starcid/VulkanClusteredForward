@@ -24,13 +24,16 @@ public:
 	virtual void initTinyObjData(tinyobj::attrib_t& attrib, std::vector<tinyobj::shape_t>& shapes, std::vector<tinyobj::material_t>& materials) = 0;
 
 protected:
+	int CalculateHash(int idx1, int idx2, int idx3);
+
+protected:
 	Renderer* m_pRenderer;
 
 	/// <summary>
 	///  test data
 	/// </summary>
-	static const std::vector<Vertex> vertices;
-	static const std::vector<int> indices;
+	static const std::vector<Vertex> test_vertices;
+	static const std::vector<int> test_indices;
 };
 
 #endif // !__GEO_DATA_H__

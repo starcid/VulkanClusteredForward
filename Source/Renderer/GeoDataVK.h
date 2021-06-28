@@ -62,7 +62,6 @@ private:
 
 private:
 	void GenerateMeshlets(MeshData* meshData);
-	int CalculateHash(int idx1, int idx2, int idx3);
 
 	/// renderering data
 	std::vector<MeshData> meshDatas;

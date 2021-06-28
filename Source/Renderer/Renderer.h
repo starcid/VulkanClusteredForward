@@ -116,8 +116,8 @@ public:
 	Renderer(GLFWwindow* win);
 	virtual ~Renderer();
 
-	virtual void RenderBegin() = 0;
-	virtual void RenderEnd() = 0;
+	virtual void RenderBegin() { isRenderBegin = true; };
+	virtual void RenderEnd() { isRenderBegin = false; };
 	virtual void Flush() = 0;
 	virtual void WaitIdle() = 0;
 
@@ -156,6 +156,8 @@ protected:
 	float clear_color[4];
 	float clear_depth;
 	uint32_t clear_stencil;
+
+	bool isRenderBegin;
 
 	std::vector<PointLightData> light_infos;
 };

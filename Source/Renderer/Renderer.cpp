@@ -11,6 +11,7 @@ Renderer::Renderer(GLFWwindow* win)
 	SetClearColor(0, 0, 0, 1);
 	SetClearDepth(1, 0);
 	default_tex = NULL;
+	isRenderBegin = false;
 }
 
 Renderer::~Renderer() 

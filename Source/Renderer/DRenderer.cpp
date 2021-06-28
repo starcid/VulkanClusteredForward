@@ -85,6 +85,7 @@ D12Renderer::D12Renderer(GLFWwindow* win)
 	HWND hwnd = glfwGetWin32Window(win);
     UINT dxgiFactoryFlags = 0;
     m_texCount = 0;
+    m_lastFrameIndex = -1;
 
 #if defined(_DEBUG)
     // Enable the debug layer (requires the Graphics Tools "optional feature").
@@ -291,8 +292,6 @@ D12Renderer::D12Renderer(GLFWwindow* win)
         }
     }
 
-    ThrowIfFailed(m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_commandAllocator)));
-
     // Create the root signature.
     {
         D3D12_FEATURE_DATA_ROOT_SIGNATURE featureData = {};
@@ -409,9 +408,6 @@ D12Renderer::D12Renderer(GLFWwindow* win)
         NAME_D3D12_OBJECT(m_pipelineState);
     }
 
-    // Create command list for initial GPU setup.
-    ThrowIfFailed(m_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_commandAllocator.Get(), m_pipelineState.Get(), IID_PPV_ARGS(&m_commandList)));
-
     // Create render target views (RTVs).
     CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart());
     for (UINT i = 0; i < frameCount; i++)
@@ -421,7 +417,14 @@ D12Renderer::D12Renderer(GLFWwindow* win)
         rtvHandle.Offset(1, m_rtvDescriptorSize);
 
         NAME_D3D12_OBJECT_INDEXED(m_renderTargets, i);
+
+        ThrowIfFailed(m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_commandAllocators[i])));
+        m_fenceValues[i] = 0;
     }
+
+    // Create the command list.
+    ThrowIfFailed(m_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_commandAllocators[m_frameIndex].Get(), m_pipelineState.Get(), IID_PPV_ARGS(&m_commandList)));
+    m_commandList->Close();
 
     // Create the depth stencil.
     {
@@ -457,21 +460,44 @@ D12Renderer::D12Renderer(GLFWwindow* win)
         // Create the depth stencil view.
         m_device->CreateDepthStencilView(m_depthStencil.Get(), nullptr, m_dsvHeap->GetCPUDescriptorHandleForHeapStart());
     }
+
+    // Create synchronization objects and wait until assets have been uploaded to the GPU.
+    {
+        ThrowIfFailed(m_device->CreateFence(m_fenceValues[m_frameIndex], D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_fence)));
+        m_fenceValues[m_frameIndex]++;
+
+        // Create an event handle to use for frame synchronization.
+        m_fenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
+        if (m_fenceEvent == nullptr)
+        {
+            ThrowIfFailed(HRESULT_FROM_WIN32(GetLastError()));
+        }
+
+        // Wait for the command list to execute; we are reusing the same command 
+        // list in our main loop but for now, we just want to wait for setup to 
+        // complete before continuing.
+        WaitIdle();
+    }
 }
 
 D12Renderer::~D12Renderer()
 {
-	
+    WaitIdle();
+
+    CloseHandle(m_fenceEvent);
 }
 
 void D12Renderer::RenderBegin()
 {
-    ThrowIfFailed(m_commandAllocator->Reset());
+    ThrowIfFailed(m_commandAllocators[m_frameIndex]->Reset());
 
     // However, when ExecuteCommandList() is called on a particular command 
     // list, that command list can then be reset at any time and must be before 
     // re-recording.
-    ThrowIfFailed(m_commandList->Reset(m_commandAllocator.Get(), m_pipelineState.Get()));
+    ThrowIfFailed(m_commandList->Reset(m_commandAllocators[m_frameIndex].Get(), m_pipelineState.Get()));
+
+    // Create necessary resources
+    CreateResources();
 
     // Set necessary state.
     m_commandList->SetGraphicsRootSignature(m_rootSignature.Get());
@@ -519,12 +545,48 @@ void D12Renderer::RenderEnd()
 
 void D12Renderer::Flush()
 {
+    if (m_lastFrameIndex != -1)
+    {
+        // Schedule a Signal command in the queue.
+        const UINT64 currentFenceValue = m_fenceValues[m_frameIndex];
+        ThrowIfFailed(m_graphicsQueue->Signal(m_fence.Get(), currentFenceValue));
+
+        // If the next frame is not ready to be rendered yet, wait until it is ready.
+        if (m_fence->GetCompletedValue() < m_fenceValues[m_frameIndex])
+        {
+            ThrowIfFailed(m_fence->SetEventOnCompletion(m_fenceValues[m_frameIndex], m_fenceEvent));
+            WaitForSingleObjectEx(m_fenceEvent, INFINITE, FALSE);
+        }
+
+        // Set the fence value for the next frame.
+        m_fenceValues[m_frameIndex] = currentFenceValue + 1;
+
+        ThrowIfFailed(m_swapChain->Present(0, 0));
+    }
+
     m_frameIndex = m_swapChain->GetCurrentBackBufferIndex();
+
+    /// scene renderering
+    Application::Inst()->SceneRender();
+
+    /// draw
+    ID3D12CommandList* ppCommandLists[] = { m_commandList.Get() };
+    m_graphicsQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
+
+    m_lastFrameIndex = m_frameIndex;
 }
 
 void D12Renderer::WaitIdle()
 {
-	
+    // Schedule a Signal command in the queue.
+    ThrowIfFailed(m_graphicsQueue->Signal(m_fence.Get(), m_fenceValues[m_frameIndex]));
+
+    // Wait until the fence has been processed.
+    ThrowIfFailed(m_fence->SetEventOnCompletion(m_fenceValues[m_frameIndex], m_fenceEvent));
+    WaitForSingleObjectEx(m_fenceEvent, INFINITE, FALSE);
+
+    // Increment the fence value for the current frame.
+    m_fenceValues[m_frameIndex]++;
 }
 
 GeoData* D12Renderer::CreateGeoData()
@@ -698,8 +760,22 @@ void D12Renderer::UpdateMaterial(Material* mat)
     m_commandList->SetGraphicsRootDescriptorTable(RootParameterIndex::SrvParameter1, srvT1Handle);
 }
 
-int D12Renderer::CreateTexture(void* imageData, int width, int height, DXGI_FORMAT format, ComPtr<ID3D12Resource>& texture)
+void D12Renderer::CreateTexture(void* imageData, int width, int height, DXGI_FORMAT format, ComPtr<ID3D12Resource>& texture, int& texId)
 {
+    if (!isRenderBegin)
+    {
+        TextureCreateInfo createInfo;
+        createInfo.imageData = imageData;
+        createInfo.width = width;
+        createInfo.height = height;
+        createInfo.format = format;
+        createInfo.pTexture = &texture;
+        createInfo.pTexId = &texId;
+
+        m_textureCreateInfos.push_back(createInfo);
+        return;
+    }
+
     ComPtr<ID3D12Resource> textureUploadHeap;
 
     D3D12_RESOURCE_DESC textureDesc = {};
@@ -755,8 +831,8 @@ int D12Renderer::CreateTexture(void* imageData, int width, int height, DXGI_FORM
     srvDesc.Texture2D.MipLevels = 1;
     m_device->CreateShaderResourceView(texture.Get(), &srvDesc, hSrvHeap);
 
+    texId = m_texCount;
     m_texCount++;
-    return m_texCount - 1;
 }
 
 // Helper function for acquiring the first available hardware adapter that supports Direct3D 12.
@@ -825,6 +901,20 @@ void D12Renderer::GetHardwareAdapter(IDXGIFactory1* pFactory, IDXGIAdapter1** pp
 
 void D12Renderer::CreateVertexBuffer(void* vdata, uint32_t single, uint32_t length, ComPtr<ID3D12Resource>& vtxbuf, ComPtr<ID3D12Resource>& bufuploader, D3D12_VERTEX_BUFFER_VIEW& vbv)
 {
+    if (!isRenderBegin)
+    {
+        VertexBufferCreateInfo createInfo;
+        createInfo.vdata = vdata;
+        createInfo.single = single;
+        createInfo.length = length;
+        createInfo.pVtxBuf = &vtxbuf;
+        createInfo.pBufUploader = &bufuploader;
+        createInfo.pVbv = &vbv;
+
+        m_vertexBufferCreateInfos.push_back(createInfo);
+        return;
+    }
+
     const UINT vertexBufferSize = single * length;
     vtxbuf = CreateDefaultBuffer(m_device, m_commandList, vdata, vertexBufferSize, bufuploader);
 
@@ -835,12 +925,53 @@ void D12Renderer::CreateVertexBuffer(void* vdata, uint32_t single, uint32_t leng
 
 void D12Renderer::CreateIndexBuffer(void* idata, uint32_t single, uint32_t length, ComPtr<ID3D12Resource>& indicebuf, ComPtr<ID3D12Resource>& bufuploader, D3D12_INDEX_BUFFER_VIEW& ibv)
 {
+    if (!isRenderBegin)
+    {
+        IndexBufferCreateInfo createInfo;
+        createInfo.idata = idata;
+        createInfo.single = single;
+        createInfo.length = length;
+        createInfo.pIndicebuf = &indicebuf;
+        createInfo.pBufUploader = &bufuploader;
+        createInfo.pIbv = &ibv;
+
+        m_indexBufferCreateInfos.push_back(createInfo);
+        return;
+    }
+
     const UINT indiceBufferSize = single * length;
     indicebuf = CreateDefaultBuffer(m_device, m_commandList, idata, indiceBufferSize, bufuploader);
 
     ibv.BufferLocation = indicebuf->GetGPUVirtualAddress();
     ibv.Format = DXGI_FORMAT_R32_UINT;
     ibv.SizeInBytes = indiceBufferSize;
+}
+
+void D12Renderer::CreateResources()
+{
+    // vertex buffers
+    for (int i = 0; i < m_vertexBufferCreateInfos.size(); i++)
+    {
+        VertexBufferCreateInfo* createInfo = &m_vertexBufferCreateInfos[i];
+        CreateVertexBuffer(createInfo->vdata, createInfo->single, createInfo->length, *createInfo->pVtxBuf, *createInfo->pBufUploader, *createInfo->pVbv);
+    }
+    m_vertexBufferCreateInfos.clear();
+
+    // index buffers
+    for (int i = 0; i < m_indexBufferCreateInfos.size(); i++)
+    {
+        IndexBufferCreateInfo* createInfo = &m_indexBufferCreateInfos[i];
+        CreateIndexBuffer(createInfo->idata, createInfo->single, createInfo->length, *createInfo->pIndicebuf, *createInfo->pBufUploader, *createInfo->pIbv);
+    }
+    m_indexBufferCreateInfos.clear();
+
+    // textures
+    for (int i = 0; i < m_textureCreateInfos.size(); i++)
+    {
+        TextureCreateInfo* createInfo = &m_textureCreateInfos[i];
+        CreateTexture(createInfo->imageData, createInfo->width, createInfo->height, createInfo->format, *createInfo->pTexture, *createInfo->pTexId);
+    }
+    m_textureCreateInfos.clear();
 }
 
 int D12Renderer::CalcConstantBufferByteSize(int byteSize)

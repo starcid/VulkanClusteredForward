@@ -43,21 +43,16 @@ void GeoDataVK::initTestData()
 
 	MeshData meshData;
 
-	vRenderer->CreateVertexBuffer((void*)vertices.data(), sizeof(vertices[0]), vertices.size(), meshData.vb, meshData.vbm);
-	meshData.vertexs = vertices;
+	vRenderer->CreateVertexBuffer((void*)test_vertices.data(), sizeof(test_vertices[0]), test_vertices.size(), meshData.vb, meshData.vbm);
+	meshData.vertexs = test_vertices;
 	
 	SubMeshData subMeshData;
-	vRenderer->CreateIndexBuffer((void*)indices.data(), sizeof(indices[0]), indices.size(), subMeshData.ib, subMeshData.ibm);
-	subMeshData.indices = indices;
+	vRenderer->CreateIndexBuffer((void*)test_indices.data(), sizeof(test_indices[0]), test_indices.size(), subMeshData.ib, subMeshData.ibm);
+	subMeshData.indices = test_indices;
 
 	meshData.subMeshes.push_back(subMeshData);
 
 	meshDatas.push_back(meshData);
-}
-
-int32_t GeoDataVK::CalculateHash(int idx1, int idx2, int idx3)
-{
-	return ( idx1 * 31 + idx2 ) * 31 + idx3;
 }
 
 void GeoDataVK::initTinyObjData(tinyobj::attrib_t& attrib, std::vector<tinyobj::shape_t>& shapes, std::vector<tinyobj::material_t>& materials)
