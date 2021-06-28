@@ -26,11 +26,8 @@
     <Filter Include="Source\Ispc">
       <UniqueIdentifier>{02769ae6-bbb6-4632-846d-96d036cce21d}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Data">
-      <UniqueIdentifier>{fa5ffc76-c3e8-452e-8bea-8e998c494038}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Data\shader">
-      <UniqueIdentifier>{bd68fe16-8de5-40d0-af8f-d7de0de73f62}</UniqueIdentifier>
+    <Filter Include="Source\Shader">
+      <UniqueIdentifier>{b39336b2-6afa-4d78-9cab-2633a5fde5b1}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -217,8 +214,11 @@
     </Object>
   </ItemGroup>
   <ItemGroup>
-    <CustomBuild Include="Data\shader\tinyobj.hlsl">
-      <Filter>Data\shader</Filter>
-    </CustomBuild>
+    <FxCompile Include="Source\Shader\tinyobj_vert.hlsl">
+      <Filter>Source\Shader</Filter>
+    </FxCompile>
+    <FxCompile Include="Source\Shader\tinyobj_frag.hlsl">
+      <Filter>Source\Shader</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>

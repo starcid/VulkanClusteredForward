@@ -8,11 +8,22 @@
 // PURPOSE, MERCHANTABILITY, OR NON-INFRINGEMENT.
 //
 //*********************************************************
-
-cbuffer SceneConstantBuffer : register(b0)
+#define MAX_LIGHT_NUM 16
+cbuffer TransformData : register(b0)
 {
-    float4 offset;
-    float4 padding[15];
+    mat4 mvp;
+    mat4 model;
+    mat4 view;
+    mat4 proj;
+    mat4 proj_view;
+    vec3 cam_pos;
+    bool isClusteShading;
+    uvec4 tileSizes;
+    float zNear;
+    float zFar;
+    float scale;
+    float bias;
+    vec4 light_pos[MAX_LIGHT_NUM];
 };
 
 struct PSInput
