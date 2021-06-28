@@ -26,6 +26,12 @@
     <Filter Include="Source\Ispc">
       <UniqueIdentifier>{02769ae6-bbb6-4632-846d-96d036cce21d}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Data">
+      <UniqueIdentifier>{fa5ffc76-c3e8-452e-8bea-8e998c494038}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Data\shader">
+      <UniqueIdentifier>{bd68fe16-8de5-40d0-af8f-d7de0de73f62}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Source\Main.cpp">
@@ -209,5 +215,10 @@
     <Object Include="Source\Ispc\cluste_culling_ispc_avx2.obj">
       <Filter>Source\Ispc</Filter>
     </Object>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="Data\shader\tinyobj.hlsl">
+      <Filter>Data\shader</Filter>
+    </CustomBuild>
   </ItemGroup>
 </Project>

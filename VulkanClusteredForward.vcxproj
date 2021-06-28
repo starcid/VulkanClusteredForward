@@ -259,6 +259,11 @@
     <Object Include="Source\Ispc\cluste_culling_ispc_sse2.obj" />
     <Object Include="Source\Ispc\cluste_culling_ispc_sse4.obj" />
   </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="Data\shader\tinyobj.hlsl">
+      <FileType>Document</FileType>
+    </CustomBuild>
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

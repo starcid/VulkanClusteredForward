@@ -375,8 +375,8 @@ D12Renderer::D12Renderer(GLFWwindow* win)
         UINT compileFlags = D3DCOMPILE_OPTIMIZATION_LEVEL3;
 #endif
 
-        ThrowIfFailed(D3DCompileFromFile(L"Data/shader/tinyobj_vert.hlsl", nullptr, nullptr, "VSMain", "vs_5_0", compileFlags, 0, &vertexShader, nullptr));
-        ThrowIfFailed(D3DCompileFromFile(L"Data/shader/tinyobj_frag.hlsl", nullptr, nullptr, "PSMain", "ps_5_0", compileFlags, 0, &pixelShader, nullptr));
+        ThrowIfFailed(D3DCompileFromFile(L"Data/shader/tinyobj.hlsl", nullptr, nullptr, "VSMain", "vs_5_0", compileFlags, 0, &vertexShader, nullptr));
+        ThrowIfFailed(D3DCompileFromFile(L"Data/shader/tinyobj.hlsl", nullptr, nullptr, "PSMain", "ps_5_0", compileFlags, 0, &pixelShader, nullptr));
 
         D3D12_INPUT_LAYOUT_DESC inputLayoutDesc;
         inputLayoutDesc.pInputElementDescs = StandardVertexDescription;
