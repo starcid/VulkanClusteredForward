@@ -14,8 +14,21 @@
 #include "Renderer/VRenderer.h"
 #include "Scene/SampleScene.h"
 
-int main() 
+int main(int argc, char* argv[]) 
 {
+	char* renderer = NULL;
+	for (int i = 1; i < argc; i++)
+	{
+		if (argv[i] != NULL)
+		{
+			/// check renderer
+			if ((renderer = strstr(argv[i], "renderer=")) != NULL)
+			{
+				renderer = argv[i] + strlen("renderer=");
+			}
+		}
+	}
+
 	glfwInit();
 
 	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
@@ -23,7 +36,7 @@ int main()
 	
 	GLFWwindow* window = glfwCreateWindow((int)Application::Inst()->GetWidth(), (int)Application::Inst()->GetHeight(), "Vulkan Clustered Forward", nullptr, nullptr);
 	try {
-		Application::Inst()->CreateRenderer(window);
+		Application::Inst()->CreateRenderer(window, renderer);
 		Application::Inst()->NextScene(new SampleScene());
 		while (!glfwWindowShouldClose(window)) {
 			glfwPollEvents();

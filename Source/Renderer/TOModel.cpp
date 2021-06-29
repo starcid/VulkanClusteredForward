@@ -59,7 +59,13 @@ bool TOModel::LoadFromPath(std::string path)
 	/// material instances
 	for (int i = 0; i < materials.size(); i++)
 	{
-		Material* mat = new MaterialVK();
+		Material* mat = NULL;
+		if (Renderer::GetType() == Renderer::Vulkan)
+			mat = new MaterialVK();
+		else if (Renderer::GetType() == Renderer::DX12)
+			mat = new Material();
+		assert(mat);
+
 		mat->InitWithTinyMat(&materials[i], basePath);
 		material_insts.push_back(mat);
 	}

@@ -102,15 +102,20 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 	}
 }
 
-void Application::CreateRenderer(GLFWwindow* window)
+void Application::CreateRenderer(GLFWwindow* window, char* renderStr)
 {
 	current_window = window;
-	///D12Renderer* dRenderer = new D12Renderer(window);
-	VulkanRenderer* vRenderer = new VulkanRenderer(window);
-	renderer = vRenderer;
+	if (renderStr == NULL || strcmp(renderStr, "vulkan") == 0)
+	{
+		renderer = new VulkanRenderer(window);
+	}
+	else if (strcmp(renderStr, "dx12") == 0)
+	{
+		renderer = new D12Renderer(window);
+	}
 
 	std::string tex_path = "Data/shader/default.png";
-	vRenderer->SetDefaultTex(tex_path);
+	renderer->SetDefaultTex(tex_path);
 
 	/// input initialize
 	glfwSetInputMode(current_window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);

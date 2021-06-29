@@ -58,7 +58,13 @@ bool Texture::InitWithPath(std::string& path)
 		return true;
 	}
 
-	TextureData* texData = new TextureDataVK(path);
+	TextureData* texData = NULL;
+	if(Renderer::GetType() == Renderer::Vulkan)
+		texData = new TextureDataVK(path);
+	else if (Renderer::GetType() == Renderer::DX12)
+		texData = new TextureDataDX12(path);
+	assert(texData);
+
 	InitWithTextureData(texData);
 	texture_cache.insert(std::make_pair(path, texData));
 	return true;

@@ -42,6 +42,7 @@ const std::vector<const char*> deviceExtensions = {
 VulkanRenderer::VulkanRenderer(GLFWwindow* win)
 	:Renderer(win)
 {
+	renderer_type = Renderer::Vulkan;
 	isClusteShading = false;
 	isIspc = false;
 	isCpuClusteCull = false;

@@ -113,6 +113,13 @@ public:
 	const int MAX_MATERIAL_NUM = 50;
 	const int MAX_MODEL_NUM = 1000;
 
+	enum Type
+	{
+		Vulkan = 0,
+		DX12 = 1,
+	};
+	static Renderer::Type GetType() { return renderer_type; }
+
 	Renderer(GLFWwindow* win);
 	virtual ~Renderer();
 
@@ -160,6 +167,8 @@ protected:
 	bool isRenderBegin;
 
 	std::vector<PointLightData> light_infos;
+
+	static Renderer::Type renderer_type;
 };
 
 #endif // !__RENDERER_H__

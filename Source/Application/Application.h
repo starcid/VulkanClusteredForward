@@ -16,8 +16,8 @@
 #include <GLFW/glfw3native.h>
 
 class Scene;
-class Renderer;
 class Camera;
+class Renderer;
 class Application
 {
 	static Application* inst;
@@ -35,7 +35,7 @@ public:
 	}
 
 	virtual ~Application();
-	void CreateRenderer(GLFWwindow* window);
+	void CreateRenderer(GLFWwindow* window, char* renderStr = NULL);
 
 	bool MainLoop();
 	void NextScene(Scene* scene);

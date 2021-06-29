@@ -3,6 +3,8 @@
 #include "Texture.h"
 #include "Light.h"
 
+Renderer::Type Renderer::renderer_type = Renderer::Vulkan;
+
 Renderer::Renderer(GLFWwindow* win) 
 	: window(win) 
 {

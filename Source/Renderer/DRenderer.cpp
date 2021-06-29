@@ -82,6 +82,8 @@ enum RootParameterIndex
 D12Renderer::D12Renderer(GLFWwindow* win)
 	:Renderer(win)
 {
+    renderer_type = Renderer::DX12;
+
 	HWND hwnd = glfwGetWin32Window(win);
     UINT dxgiFactoryFlags = 0;
     m_texCount = 0;
