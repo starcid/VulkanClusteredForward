@@ -8,41 +8,41 @@
 // PURPOSE, MERCHANTABILITY, OR NON-INFRINGEMENT.
 //
 //*********************************************************
-#define MAX_LIGHT_NUM 16
-cbuffer TransformData : register(b0)
+#include "tinyobj_struct.hlsl"
+
+cbuffer Transform : register(b0)
 {
-    mat4 mvp;
-    mat4 model;
-    mat4 view;
-    mat4 proj;
-    mat4 proj_view;
-    vec3 cam_pos;
-    bool isClusteShading;
-    uvec4 tileSizes;
-    float zNear;
-    float zFar;
-    float scale;
-    float bias;
-    vec4 light_pos[MAX_LIGHT_NUM];
-};
-
-struct PSInput
-{
-    float4 position : SV_POSITION;
-    float4 color : COLOR;
-};
-
-PSInput VSMain(float4 position : POSITION, float4 color : COLOR)
-{
-    PSInput result;
-
-    result.position = position + offset;
-    result.color = color;
-
-    return result;
+    TransformData transform;
 }
 
-float4 PSMain(PSInput input) : SV_TARGET
+cbuffer Material : register(b1)
 {
-    return input.color;
+    MaterialData material;
+};
+
+cbuffer PointLights : register(b2)
+{
+    PointLightData pointLight[MAX_LIGHT_NUM];
 }
+
+PSInput VSMain(float4 inPosition : POSITION, float4 inColor : COLOR, float4 inTexcoord : TEXCOORD, float4 inNormal : NORMAL, float4 inTangent : TANGENT)
+{
+    PSInput OUT;
+
+    OUT.position = mul(transform.mvp, inPosition);
+    OUT.fragColor = inColor.xyz;
+    OUT.fragTexCoord = inTexcoord.xyz;
+    OUT.fragPos = mul(transform.model, inPosition).xyz;
+
+    float3 bitangent = cross(inNormal.xyz, inTangent.xyz);
+    float3 v = transform.cam_pos - inPosition.xyz;
+    OUT.tanViewPos = float3(dot(inTangent.xyz, v), dot(bitangent, v), dot(inNormal.xyz, v));
+    for (int i = 0; i < MAX_LIGHT_NUM; i++)
+    {
+        float3 l = (transform.light_pos[i] - inPosition).xyz;
+        OUT.tanLightPos[i] = float3(dot(inTangent.xyz, l), dot(bitangent, l), dot(inNormal.xyz, l));
+    }
+
+    return OUT;
+}
+

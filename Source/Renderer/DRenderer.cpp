@@ -72,7 +72,7 @@ const D3D12_INPUT_ELEMENT_DESC StandardVertexDescription[] =
 enum RootParameterIndex
 {
     CbvParameter,       //b0,b1,b2
-    UavParameter,       //u0,u1
+    UavParameter,       //u1,u2
     SrvParameter0,      //t0
     SrvParameter1,      //t1
     SamplerParameter,   //s0,s1
@@ -212,7 +212,7 @@ D12Renderer::D12Renderer(GLFWwindow* win)
         ThrowIfFailed(m_device->CreateDescriptorHeap(&cbvHeapDesc, IID_PPV_ARGS(&m_cbvHeap)));
         NAME_D3D12_OBJECT(m_cbvHeap);
 
-        // UAV u0 u1
+        // UAV u1 u2
         const UINT uavCount = frameCount * 2;
         D3D12_DESCRIPTOR_HEAP_DESC uavHeapDesc = {};
         uavHeapDesc.NumDescriptors = uavCount;
@@ -317,10 +317,10 @@ D12Renderer::D12Renderer(GLFWwindow* win)
         Param0Ranges[0].BaseShaderRegister = 0;
         Param0Ranges[0].NumDescriptors = 3;
 
-        // u0 u1
+        // u1 u2
         D3D12_DESCRIPTOR_RANGE Param1Ranges[2];
         Param1Ranges[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
-        Param1Ranges[0].BaseShaderRegister = 0;
+        Param1Ranges[0].BaseShaderRegister = 1;
         Param1Ranges[0].NumDescriptors = 2;
 
         // t0
@@ -510,7 +510,7 @@ void D12Renderer::RenderBegin()
     CD3DX12_GPU_DESCRIPTOR_HANDLE cbvHandle(m_cbvHeap->GetGPUDescriptorHandleForHeapStart(), m_frameIndex * 3, m_cbvUavSrvDescSize);
     m_commandList->SetGraphicsRootDescriptorTable(RootParameterIndex::CbvParameter, cbvHandle);
 
-    // u0 u1
+    // u1 u2
     CD3DX12_GPU_DESCRIPTOR_HANDLE uavHandle(m_uavHeap->GetGPUDescriptorHandleForHeapStart(), m_frameIndex * 2, m_cbvUavSrvDescSize);
     m_commandList->SetGraphicsRootDescriptorTable(RootParameterIndex::UavParameter, uavHandle);
 
