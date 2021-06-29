@@ -365,18 +365,21 @@ D12Renderer::D12Renderer(GLFWwindow* win)
     // Create the pipeline state, which includes loading shaders.
     // todo: convert shader glsl->hlsl later...
     {
-        ComPtr<ID3DBlob> vertexShader;
-        ComPtr<ID3DBlob> pixelShader;
+        //ComPtr<ID3DBlob> vertexShader;
+        //ComPtr<ID3DBlob> pixelShader;
 
 #if defined(_DEBUG)
         // Enable better shader debugging with the graphics debugging tools.
-        UINT compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
+        //UINT compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
 #else
-        UINT compileFlags = D3DCOMPILE_OPTIMIZATION_LEVEL3;
+        //UINT compileFlags = D3DCOMPILE_OPTIMIZATION_LEVEL3;
 #endif
 
-        ThrowIfFailed(D3DCompileFromFile(L"Data/shader/tinyobj.hlsl", nullptr, nullptr, "VSMain", "vs_5_0", compileFlags, 0, &vertexShader, nullptr));
-        ThrowIfFailed(D3DCompileFromFile(L"Data/shader/tinyobj.hlsl", nullptr, nullptr, "PSMain", "ps_5_0", compileFlags, 0, &pixelShader, nullptr));
+        //ThrowIfFailed(D3DCompileFromFile(L"Data/shader/tinyobj.hlsl", nullptr, nullptr, "VSMain", "vs_5_0", compileFlags, 0, &vertexShader, nullptr));
+        //ThrowIfFailed(D3DCompileFromFile(L"Data/shader/tinyobj.hlsl", nullptr, nullptr, "PSMain", "ps_5_0", compileFlags, 0, &pixelShader, nullptr));
+
+        std::vector<char> vertexShader = Utils::readFile("Data/shader/tinyobj_vert.cso");
+        std::vector<char> pixelShader = Utils::readFile("Data/shader/tinyobj_frag.cso");
 
         D3D12_INPUT_LAYOUT_DESC inputLayoutDesc;
         inputLayoutDesc.pInputElementDescs = StandardVertexDescription;
@@ -392,8 +395,8 @@ D12Renderer::D12Renderer(GLFWwindow* win)
         D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
         psoDesc.InputLayout = inputLayoutDesc;
         psoDesc.pRootSignature = m_rootSignature.Get();
-        psoDesc.VS = CD3DX12_SHADER_BYTECODE(vertexShader.Get());
-        psoDesc.PS = CD3DX12_SHADER_BYTECODE(pixelShader.Get());
+        psoDesc.VS = CD3DX12_SHADER_BYTECODE(vertexShader.data(), vertexShader.size());
+        psoDesc.PS = CD3DX12_SHADER_BYTECODE(pixelShader.data(), pixelShader.size());
         psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
         psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
         psoDesc.DepthStencilState = depthStencilDesc;
