@@ -128,6 +128,8 @@ private:
 	void SetNormalTexture(Texture* tex);
 	void UpdateMaterial(Material* mat);
 
+	D3D12_RESOURCE_DESC DescribeGPUBuffer(UINT bufSize);
+
 	int CalcConstantBufferByteSize(int byteSize);
 
 	void CreateResources();

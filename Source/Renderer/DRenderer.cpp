@@ -81,6 +81,8 @@ enum RootParameterIndex
 
 D12Renderer::D12Renderer(GLFWwindow* win)
 	:Renderer(win)
+    ,m_viewport(0.0f, 0.0f, static_cast<float>(winWidth), static_cast<float>(winHeight))
+    ,m_scissorRect(0, 0, static_cast<LONG>(winWidth), static_cast<LONG>(winHeight))
 {
     renderer_type = Renderer::DX12;
 
@@ -162,23 +164,8 @@ D12Renderer::D12Renderer(GLFWwindow* win)
         &swapChain
     ));
 
-    // Detect if newly created full-screen swap chain isn't actually full screen.
-    IDXGIOutput* pTarget; 
-    BOOL bFullscreen;
-    if (SUCCEEDED(swapChain->GetFullscreenState(&bFullscreen, &pTarget)))
-    {
-        pTarget->Release();
-    }
-    else
-        bFullscreen = FALSE;
-    // If not full screen, enable full screen again.
-    if (!bFullscreen)
-    {
-        ShowWindow(hwnd, SW_MINIMIZE);
-        ShowWindow(hwnd, SW_RESTORE);
-        swapChain->SetFullscreenState(TRUE, NULL);
-    }
-
+    // This sample does not support fullscreen transitions.
+    ThrowIfFailed(factory->MakeWindowAssociation(hwnd, DXGI_MWA_NO_ALT_ENTER));
     ThrowIfFailed(swapChain.As(&m_swapChain));
 
     m_frameIndex = m_swapChain->GetCurrentBackBufferIndex();
@@ -205,8 +192,8 @@ D12Renderer::D12Renderer(GLFWwindow* win)
 
         m_dsvDescSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
 
-        // CBV heap b0 b1 b2, b2 light won't change
-        const UINT cbvCount = frameCount * 2 + 1;
+        // CBV heap b0 b1 b2, b2 light won't change, but we still seperate it to different frame buffer
+        const UINT cbvCount = frameCount * 3;
         D3D12_DESCRIPTOR_HEAP_DESC cbvHeapDesc = {};
         cbvHeapDesc.NumDescriptors = cbvCount;
         cbvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
@@ -314,54 +301,30 @@ D12Renderer::D12Renderer(GLFWwindow* win)
             D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS;
         
         // b0 b1 b2
-        D3D12_DESCRIPTOR_RANGE Param0Ranges[1];
-        Param0Ranges[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
-        Param0Ranges[0].BaseShaderRegister = 0;
-        Param0Ranges[0].NumDescriptors = 3;
-
-        // u1 u2
-        D3D12_DESCRIPTOR_RANGE Param1Ranges[2];
-        Param1Ranges[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
-        Param1Ranges[0].BaseShaderRegister = 1;
-        Param1Ranges[0].NumDescriptors = 2;
-
-        // t0
-        D3D12_DESCRIPTOR_RANGE Param2Ranges[1];
-        Param2Ranges[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-        Param2Ranges[0].BaseShaderRegister = 0;
-        Param2Ranges[0].NumDescriptors = 1;
-
-        // t1
-        D3D12_DESCRIPTOR_RANGE Param3Ranges[1];
-        Param3Ranges[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-        Param3Ranges[0].BaseShaderRegister = 1;
-        Param3Ranges[0].NumDescriptors = 1;
-
-        // s0 s1
-        D3D12_DESCRIPTOR_RANGE Param4Ranges[1];
-        Param4Ranges[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER;
-        Param4Ranges[0].BaseShaderRegister = 0;
-        Param4Ranges[0].NumDescriptors = 2;
+        CD3DX12_DESCRIPTOR_RANGE1 ParamRanges[5];
+        ParamRanges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 3, 0);
+        ParamRanges[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 2, 1);
+        ParamRanges[2].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
+        ParamRanges[3].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1);
+        ParamRanges[4].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, 2, 0);
 
         // A single 32-bit constant root parameter that is used by the vertex shader.
-        CD3DX12_ROOT_PARAMETER rootParameters[RootParameterIndex::RootParameterCount];
-        rootParameters[RootParameterIndex::CbvParameter].InitAsDescriptorTable(1, Param0Ranges, D3D12_SHADER_VISIBILITY_ALL);
-        rootParameters[RootParameterIndex::UavParameter].InitAsDescriptorTable(1, Param1Ranges, D3D12_SHADER_VISIBILITY_PIXEL);
-        rootParameters[RootParameterIndex::SrvParameter0].InitAsDescriptorTable(1, Param2Ranges, D3D12_SHADER_VISIBILITY_PIXEL);
-        rootParameters[RootParameterIndex::SrvParameter1].InitAsDescriptorTable(1, Param3Ranges, D3D12_SHADER_VISIBILITY_PIXEL);
-        rootParameters[RootParameterIndex::SamplerParameter].InitAsDescriptorTable(1, Param4Ranges, D3D12_SHADER_VISIBILITY_PIXEL);
+        CD3DX12_ROOT_PARAMETER1 rootParameters[RootParameterIndex::RootParameterCount];
+        rootParameters[RootParameterIndex::CbvParameter].InitAsDescriptorTable(1, &ParamRanges[0], D3D12_SHADER_VISIBILITY_ALL);
+        rootParameters[RootParameterIndex::UavParameter].InitAsDescriptorTable(1, &ParamRanges[1], D3D12_SHADER_VISIBILITY_PIXEL);
+        rootParameters[RootParameterIndex::SrvParameter0].InitAsDescriptorTable(1, &ParamRanges[2], D3D12_SHADER_VISIBILITY_PIXEL);
+        rootParameters[RootParameterIndex::SrvParameter1].InitAsDescriptorTable(1, &ParamRanges[3], D3D12_SHADER_VISIBILITY_PIXEL);
+        rootParameters[RootParameterIndex::SamplerParameter].InitAsDescriptorTable(1, &ParamRanges[4], D3D12_SHADER_VISIBILITY_PIXEL);
 
-        CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDescription;
-        rootSignatureDescription.Init(_countof(rootParameters), rootParameters, 0, nullptr, rootSignatureFlags);
+        CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC rootSignatureDescription;
+        rootSignatureDescription.Init_1_1(_countof(rootParameters), rootParameters, 0, nullptr, rootSignatureFlags);
 
         // Serialize the root signature.
         ComPtr<ID3DBlob> rootSignatureBlob;
         ComPtr<ID3DBlob> errorBlob;
-        ThrowIfFailed(D3D12SerializeRootSignature(&rootSignatureDescription,
-            featureData.HighestVersion, &rootSignatureBlob, &errorBlob));
+        ThrowIfFailed(D3DX12SerializeVersionedRootSignature(&rootSignatureDescription, featureData.HighestVersion, &rootSignatureBlob, &errorBlob));
         // Create the root signature.
-        ThrowIfFailed(m_device->CreateRootSignature(0, rootSignatureBlob->GetBufferPointer(),
-            rootSignatureBlob->GetBufferSize(), IID_PPV_ARGS(&m_rootSignature)));
+        ThrowIfFailed(m_device->CreateRootSignature(0, rootSignatureBlob->GetBufferPointer(), rootSignatureBlob->GetBufferSize(), IID_PPV_ARGS(&m_rootSignature)));
     }
 
     // Create the pipeline state, which includes loading shaders.
@@ -1011,18 +974,44 @@ void D12Renderer::CreateConstBuffer(void** data, uint32_t size, ComPtr<ID3D12Res
     ThrowIfFailed(constbuf->Map(0, &readRange, reinterpret_cast<void**>(data)));
 }
 
+D3D12_RESOURCE_DESC D12Renderer::DescribeGPUBuffer(UINT bufSize)
+{
+    assert(bufSize != 0);
+
+    D3D12_RESOURCE_DESC Desc = {};
+    Desc.Alignment = 0;
+    Desc.DepthOrArraySize = 1;
+    Desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+    Desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+    Desc.Format = DXGI_FORMAT_UNKNOWN;
+    Desc.Height = 1;
+    Desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+    Desc.MipLevels = 1;
+    Desc.SampleDesc.Count = 1;
+    Desc.SampleDesc.Quality = 0;
+    Desc.Width = (UINT64)bufSize;
+    return Desc;
+}
+
 void D12Renderer::CreateUAVBuffer(void** data, uint32_t single, uint32_t length, ComPtr<ID3D12Resource>& uavbuf, CD3DX12_CPU_DESCRIPTOR_HANDLE& heapHandle)
 {
+    /// pure gpu buffer
     const UINT uavBufferSize = single * length;
 
-    D3D12_HEAP_PROPERTIES heapProperty = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
-    D3D12_RESOURCE_DESC resDesc = CD3DX12_RESOURCE_DESC::Buffer(uavBufferSize);
+    D3D12_HEAP_PROPERTIES heapProperty;
+    heapProperty.Type = D3D12_HEAP_TYPE_DEFAULT;
+    heapProperty.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+    heapProperty.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+    heapProperty.CreationNodeMask = 1;
+    heapProperty.VisibleNodeMask = 1;
+
+    D3D12_RESOURCE_DESC resDesc = DescribeGPUBuffer(uavBufferSize);
 
     ThrowIfFailed(m_device->CreateCommittedResource(
         &heapProperty,
         D3D12_HEAP_FLAG_NONE,
         &resDesc,
-        D3D12_RESOURCE_STATE_GENERIC_READ,
+        D3D12_RESOURCE_STATE_COMMON,
         nullptr,
         IID_PPV_ARGS(&uavbuf)));
 
@@ -1035,11 +1024,6 @@ void D12Renderer::CreateUAVBuffer(void** data, uint32_t single, uint32_t length,
     uavDesc.Buffer.StructureByteStride = single;
     uavDesc.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_NONE;
     m_device->CreateUnorderedAccessView(uavbuf.Get(), nullptr, &uavDesc, heapHandle);
-
-    // Map and initialize the constant buffer. We don't unmap this until the
-    // app closes. Keeping things mapped for the lifetime of the resource is okay.
-    CD3DX12_RANGE readRange(0, 0);        // We do not intend to read from this resource on the CPU.
-    ThrowIfFailed(uavbuf->Map(0, &readRange, reinterpret_cast<void**>(data)));
 }
 
 ComPtr<ID3D12Resource> D12Renderer::CreateDefaultBuffer(ComPtr<ID3D12Device>& device, ComPtr<ID3D12GraphicsCommandList>& cmdList, const void* initData, UINT64 byteSize, Microsoft::WRL::ComPtr<ID3D12Resource>& uploadBuffer)
