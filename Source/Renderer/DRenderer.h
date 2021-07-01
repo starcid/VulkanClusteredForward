@@ -68,7 +68,7 @@ public:
 	void CreateConstBuffer(void** data, uint32_t size, ComPtr<ID3D12Resource>& constbuf, CD3DX12_CPU_DESCRIPTOR_HANDLE& heapHandle);
 	void CreateUAVBuffer(void** data, uint32_t single, uint32_t length, ComPtr<ID3D12Resource>& uavbuf, CD3DX12_CPU_DESCRIPTOR_HANDLE& heapHandle);
 
-	void CreateTexture(void* imageData, int width, int height, DXGI_FORMAT format, ComPtr<ID3D12Resource>& texture, int& texId);
+	void CreateTexture(void* imageData, int width, int height, DXGI_FORMAT format, ComPtr<ID3D12Resource>& texture, ComPtr<ID3D12Resource>& textureUploadHeap, int& texId);
 
 private:
 	struct VertexBufferCreateInfo
@@ -109,6 +109,7 @@ private:
 
 		// output
 		ComPtr<ID3D12Resource>* pTexture;
+		ComPtr<ID3D12Resource>* pTextureUpload;
 		int* pTexId;
 	};
 	std::vector<D12Renderer::TextureCreateInfo> m_textureCreateInfos;

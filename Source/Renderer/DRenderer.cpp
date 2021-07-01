@@ -83,6 +83,7 @@ D12Renderer::D12Renderer(GLFWwindow* win)
 	:Renderer(win)
     ,m_viewport(0.0f, 0.0f, static_cast<float>(winWidth), static_cast<float>(winHeight))
     ,m_scissorRect(0, 0, static_cast<LONG>(winWidth), static_cast<LONG>(winHeight))
+    ,m_fenceValues {}
 {
     renderer_type = Renderer::DX12;
 
@@ -185,7 +186,7 @@ D12Renderer::D12Renderer(GLFWwindow* win)
         // Each frame has its own depth stencils (to write shadows onto) 
         // and then there is one for the scene itself.
         D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc = {};
-        dsvHeapDesc.NumDescriptors = 1 + frameCount * 1;
+        dsvHeapDesc.NumDescriptors = 1;
         dsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
         dsvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
         ThrowIfFailed(m_device->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(&m_dsvHeap)));
@@ -474,18 +475,24 @@ void D12Renderer::RenderBegin()
 
     // bind root signature with descript heaps
     ID3D12DescriptorHeap* ppHeaps[] = { m_cbvHeap.Get(), m_uavHeap.Get(), m_srvHeap.Get(), m_samplerHeap.Get() };
-    m_commandList->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
+    m_commandList->SetDescriptorHeaps(1, ppHeaps);
 
     // b0 b1 b2
     CD3DX12_GPU_DESCRIPTOR_HANDLE cbvHandle(m_cbvHeap->GetGPUDescriptorHandleForHeapStart(), m_frameIndex * 3, m_cbvUavSrvDescSize);
     m_commandList->SetGraphicsRootDescriptorTable(RootParameterIndex::CbvParameter, cbvHandle);
 
+    m_commandList->SetDescriptorHeaps(1, ppHeaps + 1);
+
     // u1 u2
     CD3DX12_GPU_DESCRIPTOR_HANDLE uavHandle(m_uavHeap->GetGPUDescriptorHandleForHeapStart(), m_frameIndex * 2, m_cbvUavSrvDescSize);
     m_commandList->SetGraphicsRootDescriptorTable(RootParameterIndex::UavParameter, uavHandle);
 
+    m_commandList->SetDescriptorHeaps(1, ppHeaps + 3);
+
     // s0 s1
     m_commandList->SetGraphicsRootDescriptorTable(RootParameterIndex::SamplerParameter, m_samplerHeap->GetGPUDescriptorHandleForHeapStart());
+
+    m_commandList->SetDescriptorHeaps(1, ppHeaps + 2);
 
     m_commandList->RSSetViewports(1, &m_viewport);
     m_commandList->RSSetScissorRects(1, &m_scissorRect);
@@ -495,7 +502,7 @@ void D12Renderer::RenderBegin()
     m_commandList->ResourceBarrier(1, &m_transtionBarrier);
 
     CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart(), m_frameIndex, m_rtvDescriptorSize);
-    m_commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
+    CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHandle(m_dsvHeap->GetCPUDescriptorHandleForHeapStart());
 
     // Clear the render targets.
     m_commandList->ClearRenderTargetView(rtvHandle, clear_color, 0, nullptr);
@@ -503,13 +510,15 @@ void D12Renderer::RenderBegin()
 
     /// default triangle list
     m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+    m_commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
 }
 
 void D12Renderer::RenderEnd()
 {
     // Indicate that the back buffer will now be used to present.
-    m_commandList->ResourceBarrier(1, &m_transtionBarrier);
     m_transtionBarrier = CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
+    m_commandList->ResourceBarrier(1, &m_transtionBarrier);
     ThrowIfFailed(m_commandList->Close());
 
     Renderer::RenderEnd();
@@ -523,6 +532,9 @@ void D12Renderer::Flush()
         const UINT64 currentFenceValue = m_fenceValues[m_frameIndex];
         ThrowIfFailed(m_graphicsQueue->Signal(m_fence.Get(), currentFenceValue));
 
+        // Update the frame index.
+        m_frameIndex = m_swapChain->GetCurrentBackBufferIndex();
+
         // If the next frame is not ready to be rendered yet, wait until it is ready.
         if (m_fence->GetCompletedValue() < m_fenceValues[m_frameIndex])
         {
@@ -532,11 +544,7 @@ void D12Renderer::Flush()
 
         // Set the fence value for the next frame.
         m_fenceValues[m_frameIndex] = currentFenceValue + 1;
-
-        ThrowIfFailed(m_swapChain->Present(0, 0));
     }
-
-    m_frameIndex = m_swapChain->GetCurrentBackBufferIndex();
 
     /// scene renderering
     Application::Inst()->SceneRender();
@@ -544,6 +552,8 @@ void D12Renderer::Flush()
     /// draw
     ID3D12CommandList* ppCommandLists[] = { m_commandList.Get() };
     m_graphicsQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
+
+    ThrowIfFailed(m_swapChain->Present(0, 0));
 
     m_lastFrameIndex = m_frameIndex;
 }
@@ -732,7 +742,7 @@ void D12Renderer::UpdateMaterial(Material* mat)
     m_commandList->SetGraphicsRootDescriptorTable(RootParameterIndex::SrvParameter1, srvT1Handle);
 }
 
-void D12Renderer::CreateTexture(void* imageData, int width, int height, DXGI_FORMAT format, ComPtr<ID3D12Resource>& texture, int& texId)
+void D12Renderer::CreateTexture(void* imageData, int width, int height, DXGI_FORMAT format, ComPtr<ID3D12Resource>& texture, ComPtr<ID3D12Resource>& textureUploadHeap, int& texId)
 {
     if (!isRenderBegin)
     {
@@ -742,13 +752,12 @@ void D12Renderer::CreateTexture(void* imageData, int width, int height, DXGI_FOR
         createInfo.height = height;
         createInfo.format = format;
         createInfo.pTexture = &texture;
+        createInfo.pTextureUpload = &textureUploadHeap;
         createInfo.pTexId = &texId;
 
         m_textureCreateInfos.push_back(createInfo);
         return;
     }
-
-    ComPtr<ID3D12Resource> textureUploadHeap;
 
     D3D12_RESOURCE_DESC textureDesc = {};
     textureDesc.MipLevels = 1;
@@ -805,6 +814,9 @@ void D12Renderer::CreateTexture(void* imageData, int width, int height, DXGI_FOR
 
     texId = m_texCount;
     m_texCount++;
+
+    texture->SetName(L"tex_buf");
+    textureUploadHeap->SetName(L"tex_up_buf");
 }
 
 // Helper function for acquiring the first available hardware adapter that supports Direct3D 12.
@@ -893,6 +905,8 @@ void D12Renderer::CreateVertexBuffer(void* vdata, uint32_t single, uint32_t leng
     vbv.BufferLocation = vtxbuf->GetGPUVirtualAddress();
     vbv.StrideInBytes = single;
     vbv.SizeInBytes = vertexBufferSize;
+    vtxbuf->SetName(L"vtx_buf");
+    bufuploader->SetName(L"vtx_up_buf");;
 }
 
 void D12Renderer::CreateIndexBuffer(void* idata, uint32_t single, uint32_t length, ComPtr<ID3D12Resource>& indicebuf, ComPtr<ID3D12Resource>& bufuploader, D3D12_INDEX_BUFFER_VIEW& ibv)
@@ -917,6 +931,8 @@ void D12Renderer::CreateIndexBuffer(void* idata, uint32_t single, uint32_t lengt
     ibv.BufferLocation = indicebuf->GetGPUVirtualAddress();
     ibv.Format = DXGI_FORMAT_R32_UINT;
     ibv.SizeInBytes = indiceBufferSize;
+    indicebuf->SetName(L"indice_buf");
+    bufuploader->SetName(L"indice_up_buf");;
 }
 
 void D12Renderer::CreateResources()
@@ -941,7 +957,7 @@ void D12Renderer::CreateResources()
     for (int i = 0; i < m_textureCreateInfos.size(); i++)
     {
         TextureCreateInfo* createInfo = &m_textureCreateInfos[i];
-        CreateTexture(createInfo->imageData, createInfo->width, createInfo->height, createInfo->format, *createInfo->pTexture, *createInfo->pTexId);
+        CreateTexture(createInfo->imageData, createInfo->width, createInfo->height, createInfo->format, *createInfo->pTexture, *createInfo->pTextureUpload, *createInfo->pTexId);
     }
     m_textureCreateInfos.clear();
 }
@@ -976,6 +992,8 @@ void D12Renderer::CreateConstBuffer(void** data, uint32_t size, ComPtr<ID3D12Res
     // app closes. Keeping things mapped for the lifetime of the resource is okay.
     CD3DX12_RANGE readRange(0, 0);        // We do not intend to read from this resource on the CPU.
     ThrowIfFailed(constbuf->Map(0, &readRange, reinterpret_cast<void**>(data)));
+
+    constbuf->SetName(L"const_buf");
 }
 
 D3D12_RESOURCE_DESC D12Renderer::DescribeGPUBuffer(UINT bufSize)
@@ -1028,6 +1046,8 @@ void D12Renderer::CreateUAVBuffer(void** data, uint32_t single, uint32_t length,
     uavDesc.Buffer.StructureByteStride = single;
     uavDesc.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_NONE;
     m_device->CreateUnorderedAccessView(uavbuf.Get(), nullptr, &uavDesc, heapHandle);
+
+    uavbuf->SetName(L"uav_buf");
 }
 
 void D12Renderer::CreateDefaultBuffer(ComPtr<ID3D12Device>& device, ComPtr<ID3D12GraphicsCommandList>& cmdList, const void* initData, UINT64 byteSize, Microsoft::WRL::ComPtr<ID3D12Resource>& buffer, Microsoft::WRL::ComPtr<ID3D12Resource>& uploadBuffer)

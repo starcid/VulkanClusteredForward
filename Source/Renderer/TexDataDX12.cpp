@@ -8,7 +8,7 @@ TextureDataDX12::TextureDataDX12(std::string& path)
 {
     D12Renderer* dRenderer = (D12Renderer*)Application::Inst()->GetRenderer();
 
-    dRenderer->CreateTexture(pixels, tex_width, tex_height, DXGI_FORMAT_R8G8B8A8_UNORM, m_texture, tex_id);
+    dRenderer->CreateTexture(pixels, tex_width, tex_height, DXGI_FORMAT_R8G8B8A8_UNORM, m_texture, m_textureUploadHeap, tex_id);
 }
 
 TextureDataDX12::~TextureDataDX12()

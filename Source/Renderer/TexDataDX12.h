@@ -28,6 +28,7 @@ public:
 
 private:
 	ComPtr<ID3D12Resource> m_texture;
+	ComPtr<ID3D12Resource> m_textureUploadHeap;
 };
 
 #endif // !__TEX_DATA_DX12_H__
