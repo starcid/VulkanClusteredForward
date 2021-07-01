@@ -37,6 +37,9 @@ void GeoDataDX12::initTinyObjData(tinyobj::attrib_t& attrib, std::vector<tinyobj
 	bool hasWeight = attrib.vertex_weights.size() > 0;
 	bool hasWs = attrib.texcoord_ws.size() > 0;
 
+	// pre alloc size to prevent address change
+	meshDatas.resize(shapes.size());
+
 	for (int i = 0; i < shapes.size(); i++)
 	{
 		tinyobj::shape_t* shape = &shapes[i];
@@ -60,20 +63,19 @@ void GeoDataDX12::initTinyObjData(tinyobj::attrib_t& attrib, std::vector<tinyobj
 		subMeshTriIdxs.push_back((int)mesh->material_ids.size());
 
 		/// mesh data
-		MeshData tempMeshData;
-		meshDatas.push_back(tempMeshData);
-
-		MeshData& meshData = meshDatas[meshDatas.size() - 1];
+		MeshData& meshData = meshDatas[i];
 		std::vector<Vertex>& vertexs = meshData.vertexs;
 		std::map<int, int> indexMap;
+
+		// pre alloc size to prevent address change
+		meshData.subMeshes.resize(subMeshMatIds.size());
 
 		///  vertex / indices buffer generate
 		int startVtxIdx = 0;
 		for (int k = 0; k < subMeshMatIds.size(); k++)
 		{
 			/// sub mesh data
-			SubMeshData subMeshData;
-
+			SubMeshData& subMeshData = meshData.subMeshes[k];
 			std::vector<int>& indices = subMeshData.indices;
 			int indicesNum = (subMeshTriIdxs[k] - startVtxIdx) * 3;
 
@@ -123,7 +125,6 @@ void GeoDataDX12::initTinyObjData(tinyobj::attrib_t& attrib, std::vector<tinyobj
 			}
 			startVtxIdx = subMeshTriIdxs[k];
 			subMeshData.mid = subMeshMatIds[k];
-			meshData.subMeshes.push_back(subMeshData);
 		}
 
 		/// tangent fix

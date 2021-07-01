@@ -457,6 +457,8 @@ D12Renderer::~D12Renderer()
 
 void D12Renderer::RenderBegin()
 {
+    Renderer::RenderBegin();
+
     ThrowIfFailed(m_commandAllocators[m_frameIndex]->Reset());
 
     // However, when ExecuteCommandList() is called on a particular command 
@@ -509,6 +511,8 @@ void D12Renderer::RenderEnd()
     m_commandList->ResourceBarrier(1, &m_transtionBarrier);
     m_transtionBarrier = CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
     ThrowIfFailed(m_commandList->Close());
+
+    Renderer::RenderEnd();
 }
 
 void D12Renderer::Flush()
@@ -884,7 +888,7 @@ void D12Renderer::CreateVertexBuffer(void* vdata, uint32_t single, uint32_t leng
     }
 
     const UINT vertexBufferSize = single * length;
-    vtxbuf = CreateDefaultBuffer(m_device, m_commandList, vdata, vertexBufferSize, bufuploader);
+    CreateDefaultBuffer(m_device, m_commandList, vdata, vertexBufferSize, vtxbuf, bufuploader);
 
     vbv.BufferLocation = vtxbuf->GetGPUVirtualAddress();
     vbv.StrideInBytes = single;
@@ -908,7 +912,7 @@ void D12Renderer::CreateIndexBuffer(void* idata, uint32_t single, uint32_t lengt
     }
 
     const UINT indiceBufferSize = single * length;
-    indicebuf = CreateDefaultBuffer(m_device, m_commandList, idata, indiceBufferSize, bufuploader);
+    CreateDefaultBuffer(m_device, m_commandList, idata, indiceBufferSize, indicebuf, bufuploader);
 
     ibv.BufferLocation = indicebuf->GetGPUVirtualAddress();
     ibv.Format = DXGI_FORMAT_R32_UINT;
@@ -1026,10 +1030,8 @@ void D12Renderer::CreateUAVBuffer(void** data, uint32_t single, uint32_t length,
     m_device->CreateUnorderedAccessView(uavbuf.Get(), nullptr, &uavDesc, heapHandle);
 }
 
-ComPtr<ID3D12Resource> D12Renderer::CreateDefaultBuffer(ComPtr<ID3D12Device>& device, ComPtr<ID3D12GraphicsCommandList>& cmdList, const void* initData, UINT64 byteSize, Microsoft::WRL::ComPtr<ID3D12Resource>& uploadBuffer)
+void D12Renderer::CreateDefaultBuffer(ComPtr<ID3D12Device>& device, ComPtr<ID3D12GraphicsCommandList>& cmdList, const void* initData, UINT64 byteSize, Microsoft::WRL::ComPtr<ID3D12Resource>& buffer, Microsoft::WRL::ComPtr<ID3D12Resource>& uploadBuffer)
 {
-    ComPtr<ID3D12Resource> defaultBuffer;
-
     // Create the actual default buffer resource.
     D3D12_HEAP_PROPERTIES heapProperty = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
     D3D12_RESOURCE_DESC resDesc = CD3DX12_RESOURCE_DESC::Buffer(byteSize);
@@ -1039,7 +1041,7 @@ ComPtr<ID3D12Resource> D12Renderer::CreateDefaultBuffer(ComPtr<ID3D12Device>& de
         &resDesc,
         D3D12_RESOURCE_STATE_COMMON,
         nullptr,
-        IID_PPV_ARGS(defaultBuffer.GetAddressOf())));
+        IID_PPV_ARGS(buffer.GetAddressOf())));
 
     // In order to copy CPU memory data into our default buffer, we need
     // to create an intermediate upload heap.
@@ -1064,18 +1066,11 @@ ComPtr<ID3D12Resource> D12Renderer::CreateDefaultBuffer(ComPtr<ID3D12Device>& de
     // will copy the CPU memory into the intermediate upload heap.
     // Then, using ID3D12CommandList::CopySubresourceRegion,
     // the intermediate upload heap data will be copied to mBuffer.
-    D3D12_RESOURCE_BARRIER resBarrier = CD3DX12_RESOURCE_BARRIER::Transition(defaultBuffer.Get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_COPY_DEST);
+    D3D12_RESOURCE_BARRIER resBarrier = CD3DX12_RESOURCE_BARRIER::Transition(buffer.Get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_COPY_DEST);
     cmdList->ResourceBarrier(1, &resBarrier);
     UpdateSubresources<1>(cmdList.Get(),
-        defaultBuffer.Get(), uploadBuffer.Get(),
+        buffer.Get(), uploadBuffer.Get(),
         0, 0, 1, &subResourceData);
-    resBarrier = CD3DX12_RESOURCE_BARRIER::Transition(defaultBuffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_GENERIC_READ);
+    resBarrier = CD3DX12_RESOURCE_BARRIER::Transition(buffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_GENERIC_READ);
     cmdList->ResourceBarrier(1, &resBarrier);
-
-    // Note: uploadBuffer has to be kept alive after the above function
-    // calls because the command list has not been executed yet that
-    // performs the actual copy.
-    // The caller can Release the uploadBuffer after it knows the copy
-    // has been executed.
-    return defaultBuffer;
 }

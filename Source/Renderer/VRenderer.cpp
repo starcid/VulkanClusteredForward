@@ -2301,6 +2301,8 @@ void VulkanRenderer::ClearLightBufferData()
 
 void VulkanRenderer::RenderBegin()
 {
+	Renderer::RenderBegin();
+
 	/// state
 	isMeshShader = isMeshShaderState;
 	isClusteShading = isClusteShadingState;
@@ -2430,6 +2432,8 @@ void VulkanRenderer::RenderEnd()
 	if (vkEndCommandBuffer(command_buffers[active_command_buffer_idx]) != VK_SUCCESS) {
 		throw std::runtime_error("failed to record command buffer!");
 	}
+
+	Renderer::RenderEnd();
 }
 
 void VulkanRenderer::Flush()

@@ -115,7 +115,7 @@ private:
 
 private:
 	void GetHardwareAdapter(_In_ IDXGIFactory1* pFactory, _Outptr_result_maybenull_ IDXGIAdapter1** ppAdapter, bool requestHighPerformanceAdapter = false);
-	Microsoft::WRL::ComPtr<ID3D12Resource> CreateDefaultBuffer(ComPtr<ID3D12Device>& device, ComPtr<ID3D12GraphicsCommandList>& cmdList, const void* initData, UINT64 byteSize, ComPtr<ID3D12Resource>& uploadBuffer);
+	void CreateDefaultBuffer(ComPtr<ID3D12Device>& device, ComPtr<ID3D12GraphicsCommandList>& cmdList, const void* initData, UINT64 byteSize, Microsoft::WRL::ComPtr<ID3D12Resource>& buffer, ComPtr<ID3D12Resource>& uploadBuffer);
 
 	void SetMvpMatrix(glm::mat4x4& mvpMtx);
 	void SetModelMatrix(glm::mat4x4& mtx);
