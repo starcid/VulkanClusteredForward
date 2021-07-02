@@ -54,9 +54,6 @@ float4 PSMain(PSInput IN) : SV_TARGET
         uint tileIndex = tiles.x +
                         transform.tileSizes.x * tiles.y +
                         (transform.tileSizes.x * transform.tileSizes.y) * tiles.z;
-        ///float color = float(zTile) / transform.tileSizes.z;
-        ///outColor.xyz = vec3(color, color, color);
-        ///return;
 
         uint offset = lightGrid[tileIndex].offset;
         uint visibleLightCount = lightGrid[tileIndex].count;

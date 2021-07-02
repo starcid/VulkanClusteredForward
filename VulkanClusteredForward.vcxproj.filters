@@ -189,6 +189,9 @@
     <ClInclude Include="Source\Renderer\MaterialVK.h">
       <Filter>Source\Renderer</Filter>
     </ClInclude>
+    <ClInclude Include="Source\Renderer\GLMConfig.h">
+      <Filter>Source\Renderer</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Object Include="Source\Ispc\cluste_culling_ispc_avx512knl.obj">

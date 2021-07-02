@@ -102,7 +102,7 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 	}
 }
 
-void Application::CreateRenderer(GLFWwindow* window, char* renderStr)
+void Application::CreateRenderer(GLFWwindow* window, const char* renderStr)
 {
 	current_window = window;
 	if (renderStr == NULL || strcmp(renderStr, "vulkan") == 0)
@@ -173,10 +173,17 @@ void Application::showFPS(GLFWwindow *pWindow)
 
 		char title[256];
 		title[255] = '\0';
-		if(cullTime != 0)
-			snprintf(title, 255, "[FPS: %3.2f] [ClusteShading: %s] [MeshShading: %s] [%s][Cull:%.4f(ms)]", fps, ((VulkanRenderer*)renderer)->IsClusteShading() ? "ON" : "OFF", ((VulkanRenderer*)renderer)->IsMeshShading() ? "ON" : "OFF", mode, cullTime);
+		if (Renderer::GetType() == Renderer::Vulkan)
+		{
+			if (cullTime != 0)
+				snprintf(title, 255, "[Vulkan][FPS: %3.2f] [ClusteShading: %s] [MeshShading: %s] [%s][Cull:%.4f(ms)]", fps, ((VulkanRenderer*)renderer)->IsClusteShading() ? "ON" : "OFF", ((VulkanRenderer*)renderer)->IsMeshShading() ? "ON" : "OFF", mode, cullTime);
+			else
+				snprintf(title, 255, "[Vulkan][FPS: %3.2f] [ClusteShading: %s] [MeshShading: %s] [%s]", fps, ((VulkanRenderer*)renderer)->IsClusteShading() ? "ON" : "OFF", ((VulkanRenderer*)renderer)->IsMeshShading() ? "ON" : "OFF", mode);
+		}
 		else
-			snprintf(title, 255, "[FPS: %3.2f] [ClusteShading: %s] [MeshShading: %s] [%s]", fps, ((VulkanRenderer*)renderer)->IsClusteShading() ? "ON" : "OFF", ((VulkanRenderer*)renderer)->IsMeshShading() ? "ON" : "OFF", mode);
+		{
+			snprintf(title, 255, "[DX12][FPS: %3.2f]", fps);
+		}
 		glfwSetWindowTitle(pWindow, title);
 		nb_frames = 0;
 		last_fps_time = currentTime;

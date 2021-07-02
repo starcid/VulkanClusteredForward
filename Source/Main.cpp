@@ -1,10 +1,7 @@
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
-#define GLM_FORCE_RADIANS
-#define GLM_FORCE_DEPTH_ZERO_TO_ONE
-#include <glm/vec4.hpp>
-#include <glm/mat4x4.hpp>
+#include "Renderer/GLMConfig.h"
 
 #include <iostream>
 #include <exception>
@@ -34,7 +31,7 @@ int main(int argc, char* argv[])
 	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 	glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 	
-	GLFWwindow* window = glfwCreateWindow((int)Application::Inst()->GetWidth(), (int)Application::Inst()->GetHeight(), "Vulkan Clustered Forward", nullptr, nullptr);
+	GLFWwindow* window = glfwCreateWindow((int)Application::Inst()->GetWidth(), (int)Application::Inst()->GetHeight(), "Clustered Forward", nullptr, nullptr);
 	try {
 		Application::Inst()->CreateRenderer(window, renderer);
 		Application::Inst()->NextScene(new SampleScene());

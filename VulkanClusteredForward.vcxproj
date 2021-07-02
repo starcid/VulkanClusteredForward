@@ -234,6 +234,7 @@
     <ClInclude Include="Source\Renderer\GeoData.h" />
     <ClInclude Include="Source\Renderer\GeoDataDX12.h" />
     <ClInclude Include="Source\Renderer\GeoDataVK.h" />
+    <ClInclude Include="Source\Renderer\GLMConfig.h" />
     <ClInclude Include="Source\Renderer\Light.h" />
     <ClInclude Include="Source\Renderer\Material.h" />
     <ClInclude Include="Source\Renderer\MaterialVK.h" />

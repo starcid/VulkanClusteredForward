@@ -55,48 +55,53 @@ bool SampleScene::OnEnter()
 
 bool SampleScene::OnUpdate(float dt)
 {
-	colorR += 0.2f * dt;
+/*	colorR += 0.2f * dt;
 	if (colorR >= 1.0f)
 		colorR = 0.0f;
+	Application::Inst()->GetRenderer()->SetClearColor(colorR, 0, 0, 1);
+*/
 
 	UpdateCameraByInput();
-	if (Application::Inst()->GetPressedKey() == GLFW_KEY_C)
+	if (Renderer::GetType() == Renderer::Vulkan)
 	{
-		VulkanRenderer* vRenderer = (VulkanRenderer*)Application::Inst()->GetRenderer();
-		if (shadingMode == NoClusteShading)
+		if (Application::Inst()->GetPressedKey() == GLFW_KEY_C)
 		{
-			vRenderer->SetClusteShading(true);
-			vRenderer->SetCpuClusteCull(false);
-			vRenderer->SetISPC(false);
-			shadingMode = ClusteShading_Compute;
+			VulkanRenderer* vRenderer = (VulkanRenderer*)Application::Inst()->GetRenderer();
+			if (shadingMode == NoClusteShading)
+			{
+				vRenderer->SetClusteShading(true);
+				vRenderer->SetCpuClusteCull(false);
+				vRenderer->SetISPC(false);
+				shadingMode = ClusteShading_Compute;
+			}
+			else if (shadingMode == ClusteShading_Compute)
+			{
+				vRenderer->SetClusteShading(true);
+				vRenderer->SetCpuClusteCull(true);
+				vRenderer->SetISPC(false);
+				shadingMode = ClusteShading_RawCpu;
+			}
+			else if (shadingMode == ClusteShading_RawCpu)
+			{
+				vRenderer->SetClusteShading(true);
+				vRenderer->SetCpuClusteCull(true);
+				vRenderer->SetISPC(true);
+				shadingMode = ClusteShading_ISPC;
+			}
+			else if (shadingMode == ClusteShading_ISPC)
+			{
+				vRenderer->SetClusteShading(false);
+				vRenderer->SetCpuClusteCull(false);
+				vRenderer->SetISPC(false);
+				shadingMode = NoClusteShading;
+			}
+			vRenderer->ClearLightBufferData();
 		}
-		else if (shadingMode == ClusteShading_Compute)
+		else if (Application::Inst()->GetPressedKey() == GLFW_KEY_M)
 		{
-			vRenderer->SetClusteShading(true);
-			vRenderer->SetCpuClusteCull(true);
-			vRenderer->SetISPC(false);
-			shadingMode = ClusteShading_RawCpu;
+			VulkanRenderer* vRenderer = (VulkanRenderer*)Application::Inst()->GetRenderer();
+			vRenderer->SetMeshShading(!vRenderer->IsMeshShading());
 		}
-		else if (shadingMode == ClusteShading_RawCpu)
-		{
-			vRenderer->SetClusteShading(true);
-			vRenderer->SetCpuClusteCull(true);
-			vRenderer->SetISPC(true);
-			shadingMode = ClusteShading_ISPC;
-		}
-		else if (shadingMode == ClusteShading_ISPC)
-		{
-			vRenderer->SetClusteShading(false);
-			vRenderer->SetCpuClusteCull(false);
-			vRenderer->SetISPC(false);
-			shadingMode = NoClusteShading;
-		}
-		vRenderer->ClearLightBufferData();
-	}
-	else if (Application::Inst()->GetPressedKey() == GLFW_KEY_M)
-	{
-		VulkanRenderer* vRenderer = (VulkanRenderer*)Application::Inst()->GetRenderer();
-		vRenderer->SetMeshShading(!vRenderer->IsMeshShading());
 	}
 
 	return true;

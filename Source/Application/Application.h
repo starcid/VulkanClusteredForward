@@ -3,12 +3,7 @@
 
 #include <iostream>
 
-#define GLM_FORCE_RADIANS
-#define GLM_FORCE_DEPTH_ZERO_TO_ONE
-#include <glm/glm.hpp>
-#include <glm/vec4.hpp>
-#include <glm/mat4x4.hpp>
-#include <glm/gtc/matrix_transform.hpp>
+#include "../Renderer/GLMConfig.h"
 
 #define GLFW_INCLUDE_VULKAN
 #define GLFW_EXPOSE_NATIVE_WIN32
@@ -35,7 +30,7 @@ public:
 	}
 
 	virtual ~Application();
-	void CreateRenderer(GLFWwindow* window, char* renderStr = NULL);
+	void CreateRenderer(GLFWwindow* window, const char* renderStr = NULL);
 
 	bool MainLoop();
 	void NextScene(Scene* scene);
