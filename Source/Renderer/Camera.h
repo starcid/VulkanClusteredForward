@@ -6,7 +6,6 @@
 class VulkanRenderer;
 class Camera : public TransformEntity
 {
-	friend class VulkanRenderer;
 public:
 	Camera(float s_width, float s_height);
 	virtual ~Camera();
@@ -35,8 +34,9 @@ public:
 	float GetBaseScrollOffset() { return base_scroll_offset; }
 	glm::vec2 GetBaseMoveOffset() { return base_move_offset; }
 
-private:
 	void UpdateViewProject();
+
+private:
 	glm::mat4x4* UpdateProjectMatrix();
 
 private:

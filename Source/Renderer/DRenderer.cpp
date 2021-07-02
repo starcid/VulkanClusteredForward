@@ -504,14 +504,14 @@ void D12Renderer::RenderBegin()
     CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart(), m_frameIndex, m_rtvDescriptorSize);
     CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHandle(m_dsvHeap->GetCPUDescriptorHandleForHeapStart());
 
+    m_commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
+
     // Clear the render targets.
     m_commandList->ClearRenderTargetView(rtvHandle, clear_color, 0, nullptr);
     m_commandList->ClearDepthStencilView(m_dsvHeap->GetCPUDescriptorHandleForHeapStart(), D3D12_CLEAR_FLAG_DEPTH, clear_depth, clear_stencil, 0, nullptr);
 
     /// default triangle list
     m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
-    m_commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
 }
 
 void D12Renderer::RenderEnd()

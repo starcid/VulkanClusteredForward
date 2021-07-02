@@ -1,5 +1,5 @@
 #include "Renderer.h"
-
+#include "Camera.h"
 #include "Texture.h"
 #include "Light.h"
 
@@ -45,3 +45,15 @@ void Renderer::ClearLight()
 {
 	light_infos.clear();
 }
+
+void Renderer::RenderBegin()
+{
+	isRenderBegin = true; /// set camera
+	assert(camera != NULL);
+	camera->UpdateViewProject();
+};
+
+void Renderer::RenderEnd() 
+{ 
+	isRenderBegin = false; 
+};

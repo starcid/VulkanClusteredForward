@@ -2309,10 +2309,6 @@ void VulkanRenderer::RenderBegin()
 	isCpuClusteCull = isCpuClusteCullState;
 	isIspc = isIspcState;
 
-	/// set camera
-	assert(camera != NULL);
-	camera->UpdateViewProject();
-
 	/// branch ispc/gpu cluste_shading
 	if (isClusteShading)
 	{

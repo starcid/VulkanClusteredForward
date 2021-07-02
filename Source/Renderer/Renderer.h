@@ -120,8 +120,9 @@ public:
 	Renderer(GLFWwindow* win);
 	virtual ~Renderer();
 
-	virtual void RenderBegin() { isRenderBegin = true; };
-	virtual void RenderEnd() { isRenderBegin = false; };
+	virtual void RenderBegin();
+	virtual void RenderEnd();
+
 	virtual void Flush() = 0;
 	virtual void WaitIdle() = 0;
 

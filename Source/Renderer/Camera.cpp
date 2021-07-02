@@ -53,7 +53,10 @@ glm::mat4x4* Camera::UpdateMatrix()
 {
 	if (transform_changed)
 	{
-		matrix = glm::lookAt(position, look_at, glm::vec3(0, 1, 0));	/// vulkan is right-hand and y is downward
+		if( Renderer::GetType() == Renderer::Vulkan )
+			matrix = glm::lookAt(position, look_at, glm::vec3(0, 1, 0));	/// vulkan is right-hand and y is downward
+		else
+			matrix = glm::lookAtLH(position, look_at, glm::vec3(0, 1, 0));	
 		transform_changed = false;
 	}
 	return &matrix;
@@ -75,7 +78,10 @@ glm::mat4x4* Camera::UpdateProjectMatrix()
 {
 	if (project_changed)
 	{
-		project_mat = glm::perspective(glm::radians(fov), screen_width/screen_height, near_clamp, far_clamp); /// vulkan is right-hand
+		if (Renderer::GetType() == Renderer::Vulkan)
+			project_mat = glm::perspective(glm::radians(fov), screen_width/screen_height, near_clamp, far_clamp); /// vulkan is right-hand
+		else
+			project_mat = glm::perspectiveLH_ZO(glm::radians(fov), screen_width / screen_height, near_clamp, far_clamp);
 		project_changed = false;
 	}
 	return &project_mat;
