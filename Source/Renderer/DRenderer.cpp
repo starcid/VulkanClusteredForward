@@ -71,7 +71,8 @@ const D3D12_INPUT_ELEMENT_DESC StandardVertexDescription[] =
 
 enum RootParameterIndex
 {
-    CbvParameter,       //b0,b1,b2
+    CbvParameter,       //b0,b1
+    MatCbvParameter,    //b2
     UavParameter,       //u1,u2
     SrvParameter0,      //t0
     SrvParameter1,      //t1
@@ -193,14 +194,23 @@ D12Renderer::D12Renderer(GLFWwindow* win)
 
         m_dsvDescSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
 
-        // CBV heap b0 b1 b2, b2 light won't change, but we still seperate it to different frame buffer
-        const UINT cbvCount = frameCount * 3;
+        // CBV heap b0 b1
+        const UINT cbvCount = frameCount * 2;
         D3D12_DESCRIPTOR_HEAP_DESC cbvHeapDesc = {};
         cbvHeapDesc.NumDescriptors = cbvCount;
         cbvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
         cbvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
         ThrowIfFailed(m_device->CreateDescriptorHeap(&cbvHeapDesc, IID_PPV_ARGS(&m_cbvHeap)));
         NAME_D3D12_OBJECT(m_cbvHeap);
+
+        // mat cbv b2
+        const UINT matCbvCount = MAX_MATERIAL_NUM;
+        D3D12_DESCRIPTOR_HEAP_DESC matCbvHeapDesc = {};
+        matCbvHeapDesc.NumDescriptors = matCbvCount;
+        matCbvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+        matCbvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+        ThrowIfFailed(m_device->CreateDescriptorHeap(&matCbvHeapDesc, IID_PPV_ARGS(&m_matCbvHeap)));
+        NAME_D3D12_OBJECT(m_matCbvHeap);
 
         // UAV u1 u2
         const UINT uavCount = frameCount * 2;
@@ -242,11 +252,11 @@ D12Renderer::D12Renderer(GLFWwindow* win)
         sampleDesc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
         sampleDesc.MipLODBias = 0;
         sampleDesc.MaxAnisotropy = 1;
-        sampleDesc.ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER;
+        sampleDesc.ComparisonFunc = D3D12_COMPARISON_FUNC_ALWAYS;
         for (int i = 0; i < 4; i++)
             sampleDesc.BorderColor[i] = 0.0f;
         sampleDesc.MinLOD = 0.0f;
-        sampleDesc.MaxLOD = D3D12_FLOAT32_MAX;
+        sampleDesc.MaxLOD = 0.0f;
 
         CD3DX12_CPU_DESCRIPTOR_HANDLE hSamplerHeap(m_samplerHeap->GetCPUDescriptorHandleForHeapStart());
         for (int i = 0; i < 2; i++)
@@ -262,8 +272,6 @@ D12Renderer::D12Renderer(GLFWwindow* win)
         for (int i = 0; i < frameCount; i++)
         {
             CreateConstBuffer(&m_transformConstBufferBegin[i], sizeof(TransformData), m_transformConstBuffer[i], hCbvHeap);
-            hCbvHeap.Offset(m_cbvUavSrvDescSize);
-            CreateConstBuffer(&m_materialConstBufferBegin[i], sizeof(MaterialData), m_materialConstBuffer[i], hCbvHeap);
             hCbvHeap.Offset(m_cbvUavSrvDescSize);
             CreateConstBuffer(&m_lightConstBufferBegin[i], sizeof(PointLightData) * MAX_LIGHT_NUM, m_lightConstBuffer[i], hCbvHeap);
             hCbvHeap.Offset(m_cbvUavSrvDescSize);
@@ -302,20 +310,22 @@ D12Renderer::D12Renderer(GLFWwindow* win)
             D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS;
         
         // b0 b1 b2
-        CD3DX12_DESCRIPTOR_RANGE1 ParamRanges[5];
-        ParamRanges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 3, 0);
-        ParamRanges[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 2, 1);
-        ParamRanges[2].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
-        ParamRanges[3].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1);
-        ParamRanges[4].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, 2, 0);
+        CD3DX12_DESCRIPTOR_RANGE1 ParamRanges[6];
+        ParamRanges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 2, 0);
+        ParamRanges[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 2);
+        ParamRanges[2].Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 2, 1);
+        ParamRanges[3].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
+        ParamRanges[4].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1);
+        ParamRanges[5].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, 2, 0);
 
         // A single 32-bit constant root parameter that is used by the vertex shader.
         CD3DX12_ROOT_PARAMETER1 rootParameters[RootParameterIndex::RootParameterCount];
         rootParameters[RootParameterIndex::CbvParameter].InitAsDescriptorTable(1, &ParamRanges[0], D3D12_SHADER_VISIBILITY_ALL);
-        rootParameters[RootParameterIndex::UavParameter].InitAsDescriptorTable(1, &ParamRanges[1], D3D12_SHADER_VISIBILITY_PIXEL);
-        rootParameters[RootParameterIndex::SrvParameter0].InitAsDescriptorTable(1, &ParamRanges[2], D3D12_SHADER_VISIBILITY_PIXEL);
-        rootParameters[RootParameterIndex::SrvParameter1].InitAsDescriptorTable(1, &ParamRanges[3], D3D12_SHADER_VISIBILITY_PIXEL);
-        rootParameters[RootParameterIndex::SamplerParameter].InitAsDescriptorTable(1, &ParamRanges[4], D3D12_SHADER_VISIBILITY_PIXEL);
+        rootParameters[RootParameterIndex::MatCbvParameter].InitAsDescriptorTable(1, &ParamRanges[1], D3D12_SHADER_VISIBILITY_PIXEL);
+        rootParameters[RootParameterIndex::UavParameter].InitAsDescriptorTable(1, &ParamRanges[2], D3D12_SHADER_VISIBILITY_PIXEL);
+        rootParameters[RootParameterIndex::SrvParameter0].InitAsDescriptorTable(1, &ParamRanges[3], D3D12_SHADER_VISIBILITY_PIXEL);
+        rootParameters[RootParameterIndex::SrvParameter1].InitAsDescriptorTable(1, &ParamRanges[4], D3D12_SHADER_VISIBILITY_PIXEL);
+        rootParameters[RootParameterIndex::SamplerParameter].InitAsDescriptorTable(1, &ParamRanges[5], D3D12_SHADER_VISIBILITY_PIXEL);
 
         CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC rootSignatureDescription;
         rootSignatureDescription.Init_1_1(_countof(rootParameters), rootParameters, 0, nullptr, rootSignatureFlags);
@@ -474,11 +484,11 @@ void D12Renderer::RenderBegin()
     m_commandList->SetGraphicsRootSignature(m_rootSignature.Get());
 
     // bind root signature with descript heaps
-    ID3D12DescriptorHeap* ppHeaps[] = { m_cbvHeap.Get(), m_uavHeap.Get(), m_srvHeap.Get(), m_samplerHeap.Get() };
+    ID3D12DescriptorHeap* ppHeaps[] = { m_cbvHeap.Get(), m_uavHeap.Get(), m_samplerHeap.Get() };
     m_commandList->SetDescriptorHeaps(1, ppHeaps);
 
-    // b0 b1 b2
-    CD3DX12_GPU_DESCRIPTOR_HANDLE cbvHandle(m_cbvHeap->GetGPUDescriptorHandleForHeapStart(), m_frameIndex * 3, m_cbvUavSrvDescSize);
+    // b0 b1
+    CD3DX12_GPU_DESCRIPTOR_HANDLE cbvHandle(m_cbvHeap->GetGPUDescriptorHandleForHeapStart(), m_frameIndex * 2, m_cbvUavSrvDescSize);
     m_commandList->SetGraphicsRootDescriptorTable(RootParameterIndex::CbvParameter, cbvHandle);
 
     m_commandList->SetDescriptorHeaps(1, ppHeaps + 1);
@@ -487,12 +497,10 @@ void D12Renderer::RenderBegin()
     CD3DX12_GPU_DESCRIPTOR_HANDLE uavHandle(m_uavHeap->GetGPUDescriptorHandleForHeapStart(), m_frameIndex * 2, m_cbvUavSrvDescSize);
     m_commandList->SetGraphicsRootDescriptorTable(RootParameterIndex::UavParameter, uavHandle);
 
-    m_commandList->SetDescriptorHeaps(1, ppHeaps + 3);
+    m_commandList->SetDescriptorHeaps(1, ppHeaps + 2);
 
     // s0 s1
     m_commandList->SetGraphicsRootDescriptorTable(RootParameterIndex::SamplerParameter, m_samplerHeap->GetGPUDescriptorHandleForHeapStart());
-
-    m_commandList->SetDescriptorHeaps(1, ppHeaps + 2);
 
     m_commandList->RSSetViewports(1, &m_viewport);
     m_commandList->RSSetScissorRects(1, &m_scissorRect);
@@ -729,11 +737,14 @@ void D12Renderer::SetNormalTexture(Texture* tex)
 
 void D12Renderer::UpdateMaterial(Material* mat)
 {
-    //  material update
-    MaterialData* matData = (MaterialData*)m_materialConstBufferBegin[m_frameIndex];
-    matData->has_albedo_map = mat->GetHasAlbedoMap();
-    matData->has_normal_map = mat->GetHasNormalMap();
+    ID3D12DescriptorHeap* ppHeaps[] = { m_matCbvHeap.Get(), m_srvHeap.Get() };
+
+    m_commandList->SetDescriptorHeaps(1, ppHeaps);
+    //  b2
+    CD3DX12_GPU_DESCRIPTOR_HANDLE matCbvHandle(m_matCbvHeap->GetGPUDescriptorHandleForHeapStart(), mat->GetMatId(), m_cbvUavSrvDescSize);
+    m_commandList->SetGraphicsRootDescriptorTable(RootParameterIndex::MatCbvParameter, matCbvHandle);
     
+    m_commandList->SetDescriptorHeaps(1, ppHeaps + 1);
     // t0 t1
     CD3DX12_GPU_DESCRIPTOR_HANDLE srvT0Handle(m_srvHeap->GetGPUDescriptorHandleForHeapStart(), m_diffuseTex->GetTextureData()->GetTexId(), m_cbvUavSrvDescSize);
     m_commandList->SetGraphicsRootDescriptorTable(RootParameterIndex::SrvParameter0, srvT0Handle);

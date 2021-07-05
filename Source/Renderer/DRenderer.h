@@ -70,6 +70,9 @@ public:
 
 	void CreateTexture(void* imageData, int width, int height, DXGI_FORMAT format, ComPtr<ID3D12Resource>& texture, ComPtr<ID3D12Resource>& textureUploadHeap, int& texId);
 
+	inline ComPtr<ID3D12DescriptorHeap>& GetMatCbvHeap() { return m_matCbvHeap; }
+	inline int GetCbvUavSrvDescSize() { return m_cbvUavSrvDescSize; }
+
 private:
 	struct VertexBufferCreateInfo
 	{
@@ -145,6 +148,7 @@ private:
 	ComPtr<ID3D12DescriptorHeap> m_rtvHeap;
 	ComPtr<ID3D12DescriptorHeap> m_dsvHeap;
 	ComPtr<ID3D12DescriptorHeap> m_cbvHeap;
+	ComPtr<ID3D12DescriptorHeap> m_matCbvHeap;
 	ComPtr<ID3D12DescriptorHeap> m_uavHeap;
 	ComPtr<ID3D12DescriptorHeap> m_srvHeap;
 	ComPtr<ID3D12DescriptorHeap> m_samplerHeap;
@@ -159,8 +163,6 @@ private:
 
 	ComPtr<ID3D12Resource> m_transformConstBuffer[frameCount];
 	void* m_transformConstBufferBegin[frameCount];
-	ComPtr<ID3D12Resource> m_materialConstBuffer[frameCount];
-	void* m_materialConstBufferBegin[frameCount];
 	ComPtr<ID3D12Resource> m_lightConstBuffer[frameCount];
 	void* m_lightConstBufferBegin[frameCount];
 	ComPtr<ID3D12Resource> m_globalLightIndexUAVBuffer[frameCount];

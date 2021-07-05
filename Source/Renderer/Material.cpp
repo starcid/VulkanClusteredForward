@@ -5,9 +5,12 @@
 #include "Renderer/VRenderer.h"
 #include "Material.h"
 
+int Material::mat_count = 0;
+
 Material::Material()
 {
 	desc_sets_updated = false;
+	mat_id = -1;
 }
 
 Material::~Material()
@@ -83,6 +86,9 @@ void Material::InitWithTinyMat(tinyobj::material_t* mat, std::string& basePath)
 		fullPath = basePath + "/" + mat->reflection_texname;
 		reflection_tex = new Texture(fullPath);
 	}
+
+	mat_id = mat_count;
+	mat_count++;
 
 	InitPlatform();
 }

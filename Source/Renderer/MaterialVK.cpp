@@ -3,6 +3,7 @@
 #include "MaterialVK.h"
 
 MaterialVK::MaterialVK()
+	:Material()
 {
 	VulkanRenderer* vRenderer = (VulkanRenderer*)Application::Inst()->GetRenderer();
 	vRenderer->AllocateDescriptorSets(desc_sets);

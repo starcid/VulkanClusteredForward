@@ -206,6 +206,7 @@
     <ClCompile Include="Source\Renderer\GeoDataVK.cpp" />
     <ClCompile Include="Source\Renderer\Light.cpp" />
     <ClCompile Include="Source\Renderer\Material.cpp" />
+    <ClCompile Include="Source\Renderer\MaterialDX12.cpp" />
     <ClCompile Include="Source\Renderer\MaterialVK.cpp" />
     <ClCompile Include="Source\Renderer\Renderer.cpp" />
     <ClCompile Include="Source\Renderer\TexDataDX12.cpp" />
@@ -237,6 +238,7 @@
     <ClInclude Include="Source\Renderer\GLMConfig.h" />
     <ClInclude Include="Source\Renderer\Light.h" />
     <ClInclude Include="Source\Renderer\Material.h" />
+    <ClInclude Include="Source\Renderer\MaterialDX12.h" />
     <ClInclude Include="Source\Renderer\MaterialVK.h" />
     <ClInclude Include="Source\Renderer\Model.h" />
     <ClInclude Include="Source\Renderer\Renderer.h" />

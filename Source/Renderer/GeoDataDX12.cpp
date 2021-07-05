@@ -83,7 +83,13 @@ void GeoDataDX12::initTinyObjData(tinyobj::attrib_t& attrib, std::vector<tinyobj
 			{
 				int hashIdx[3];
 				Vertex vertex;
-				int idx = mesh->indices[startVtxIdx * 3 + j].vertex_index;
+				int idx;
+				if( j % 3 == 1)
+					idx = mesh->indices[startVtxIdx * 3 + j + 1].vertex_index;
+				else if(j % 3 == 2)
+					idx = mesh->indices[startVtxIdx * 3 + j - 1].vertex_index;
+				else
+					idx = mesh->indices[startVtxIdx * 3 + j].vertex_index;
 				vertex.pos.x = attrib.vertices[idx * 3 + 0];
 				vertex.pos.y = attrib.vertices[idx * 3 + 1];
 				vertex.pos.z = attrib.vertices[idx * 3 + 2];
@@ -96,14 +102,24 @@ void GeoDataDX12::initTinyObjData(tinyobj::attrib_t& attrib, std::vector<tinyobj
 				vertex.color.w = 1.0f;
 				hashIdx[0] = idx;
 
-				idx = mesh->indices[startVtxIdx * 3 + j].texcoord_index;
+				if (j % 3 == 1)
+					idx = mesh->indices[startVtxIdx * 3 + j + 1].texcoord_index;
+				else if (j % 3 == 2)
+					idx = mesh->indices[startVtxIdx * 3 + j - 1].texcoord_index;
+				else
+					idx = mesh->indices[startVtxIdx * 3 + j].texcoord_index;
 				vertex.texcoord.x = attrib.texcoords[idx * 2 + 0];
 				vertex.texcoord.y = 1.0f - attrib.texcoords[idx * 2 + 1];
 				if (hasWs)
 					vertex.texcoord.z = attrib.texcoord_ws[idx];
 				hashIdx[1] = idx;
 
-				idx = mesh->indices[startVtxIdx * 3 + j].normal_index;
+				if (j % 3 == 1)
+					idx = mesh->indices[startVtxIdx * 3 + j + 1].normal_index;
+				else if (j % 3 == 2)
+					idx = mesh->indices[startVtxIdx * 3 + j - 1].normal_index;
+				else
+					idx = mesh->indices[startVtxIdx * 3 + j].normal_index;
 				vertex.normal.x = attrib.normals[idx * 3 + 0];
 				vertex.normal.y = attrib.normals[idx * 3 + 1];
 				vertex.normal.z = attrib.normals[idx * 3 + 2];

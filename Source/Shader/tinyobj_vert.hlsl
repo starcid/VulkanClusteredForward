@@ -15,12 +15,7 @@ cbuffer Transform : register(b0)
     TransformData transform;
 }
 
-cbuffer Material : register(b1)
-{
-    MaterialData material;
-};
-
-cbuffer PointLights : register(b2)
+cbuffer PointLights : register(b1)
 {
     PointLightData pointLight[MAX_LIGHT_NUM];
 }

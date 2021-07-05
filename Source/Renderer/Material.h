@@ -25,6 +25,8 @@ public:
 	inline int GetHasAlbedoMap() { return has_albedo_map; }
 	inline int GetHasNormalMap() { return has_normal_map; }
 
+	inline int GetMatId() { return mat_id; }
+
 protected:
 	virtual void InitPlatform() {}
 
@@ -42,6 +44,9 @@ protected:
 
 	int has_albedo_map;
 	int has_normal_map;
+
+	int mat_id;
+	static int mat_count;
 
 	bool desc_sets_updated;
 };

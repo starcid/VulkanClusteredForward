@@ -98,6 +98,7 @@ void Camera::UpdateViewProject()
 	if (Renderer::GetType() == Renderer::DX12)
 	{
 		clipMtx[1][1] = 1.0f;
+		clipMtx[0][0] = -1.0f;
 	}
 	view_project_mtx = clipMtx * (*projMtx) * (*viewMtx);
 }

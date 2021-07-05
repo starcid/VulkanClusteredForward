@@ -63,7 +63,7 @@ bool TOModel::LoadFromPath(std::string path)
 		if (Renderer::GetType() == Renderer::Vulkan)
 			mat = new MaterialVK();
 		else if (Renderer::GetType() == Renderer::DX12)
-			mat = new Material();
+			mat = new MaterialDX12();
 		assert(mat);
 
 		mat->InitWithTinyMat(&materials[i], basePath);

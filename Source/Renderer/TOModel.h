@@ -5,6 +5,7 @@
 /*view https://github.com/syoyo/tinyobjloader for more informations*/
 
 #include "MaterialVK.h"
+#include "MaterialDX12.h"
 #include "Model.h"
 
 #include "GeoData.h"
