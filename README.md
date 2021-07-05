@@ -1,4 +1,9 @@
-# VulkanClusteredForward
+# ClusteredForward
+DirectX12 renderer:
+Simple render the scene with DX12.
+You can start the exe with DX12 by adding command line:"renderer=dx12"
+
+Vulkan renderer:
 Including two parts:
 
     Cluster Shading
