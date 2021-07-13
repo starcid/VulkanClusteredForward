@@ -132,6 +132,10 @@ private:
 	void SetNormalTexture(Texture* tex);
 	void UpdateMaterial(Material* mat);
 
+	DXGI_FORMAT GetDSVFormat(DXGI_FORMAT defaultFormat);
+	DXGI_FORMAT GetDepthFormat(DXGI_FORMAT defaultFormat);
+	DXGI_FORMAT GetStencilFormat(DXGI_FORMAT defaultFormat);
+
 	D3D12_RESOURCE_DESC DescribeGPUBuffer(UINT bufSize);
 
 	int CalcConstantBufferByteSize(int byteSize);

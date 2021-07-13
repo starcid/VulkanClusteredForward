@@ -209,6 +209,7 @@
     <ClCompile Include="Source\Renderer\MaterialDX12.cpp" />
     <ClCompile Include="Source\Renderer\MaterialVK.cpp" />
     <ClCompile Include="Source\Renderer\Renderer.cpp" />
+    <ClCompile Include="Source\Renderer\TemporalAA.cpp" />
     <ClCompile Include="Source\Renderer\TexDataDX12.cpp" />
     <ClCompile Include="Source\Renderer\TexDataVK.cpp" />
     <ClCompile Include="Source\Renderer\Texture.cpp" />
@@ -242,6 +243,7 @@
     <ClInclude Include="Source\Renderer\MaterialVK.h" />
     <ClInclude Include="Source\Renderer\Model.h" />
     <ClInclude Include="Source\Renderer\Renderer.h" />
+    <ClInclude Include="Source\Renderer\TemporalAA.h" />
     <ClInclude Include="Source\Renderer\TexDataDX12.h" />
     <ClInclude Include="Source\Renderer\TexDataVK.h" />
     <ClInclude Include="Source\Renderer\Texture.h" />

@@ -80,6 +80,12 @@ enum RootParameterIndex
     RootParameterCount,
 };
 
+enum
+{
+    DepthSRV = 0,
+    ReverseSRVCount,
+};
+
 D12Renderer::D12Renderer(GLFWwindow* win)
 	:Renderer(win)
     ,m_viewport(0.0f, 0.0f, static_cast<float>(winWidth), static_cast<float>(winHeight))
@@ -222,7 +228,7 @@ D12Renderer::D12Renderer(GLFWwindow* win)
         NAME_D3D12_OBJECT(m_uavHeap);
 
         // SRV t0 t1
-        const UINT srvCount = MAX_MATERIAL_NUM * 2 + 1; // normal & diffuse + default
+        const UINT srvCount = ReverseSRVCount + MAX_MATERIAL_NUM * 2 + 1; // normal & diffuse + default
         D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
         srvHeapDesc.NumDescriptors = srvCount;
         srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
@@ -407,6 +413,7 @@ D12Renderer::D12Renderer(GLFWwindow* win)
 
     // Create the depth stencil.
     {
+        DXGI_FORMAT format = DXGI_FORMAT_D32_FLOAT;
         CD3DX12_RESOURCE_DESC shadowTextureDesc(
             D3D12_RESOURCE_DIMENSION_TEXTURE2D,
             0,
@@ -414,14 +421,14 @@ D12Renderer::D12Renderer(GLFWwindow* win)
             static_cast<UINT>(m_viewport.Height),
             1,
             1,
-            DXGI_FORMAT_D32_FLOAT,
+            format,
             1,
             0,
             D3D12_TEXTURE_LAYOUT_UNKNOWN,
-            D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL | D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE);
+            D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL);
 
         D3D12_CLEAR_VALUE clearValue;    // Performance tip: Tell the runtime at resource creation the desired clear value.
-        clearValue.Format = DXGI_FORMAT_D32_FLOAT;
+        clearValue.Format = format;
         clearValue.DepthStencil.Depth = clear_depth;
         clearValue.DepthStencil.Stencil = clear_stencil;
 
@@ -437,7 +444,35 @@ D12Renderer::D12Renderer(GLFWwindow* win)
         NAME_D3D12_OBJECT(m_depthStencil);
 
         // Create the depth stencil view.
+        D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc;
+        dsvDesc.Format = GetDSVFormat(format);
+        if (shadowTextureDesc.SampleDesc.Count == 1)
+        {
+            dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
+            dsvDesc.Texture2D.MipSlice = 0;
+        }
+        else
+        {
+            dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2DMS;
+        }
+        dsvDesc.Flags = D3D12_DSV_FLAG_NONE;
         m_device->CreateDepthStencilView(m_depthStencil.Get(), nullptr, m_dsvHeap->GetCPUDescriptorHandleForHeapStart());
+
+        // Create the depth shader resource view
+        D3D12_SHADER_RESOURCE_VIEW_DESC SRVDesc = {};
+        SRVDesc.Format = GetDepthFormat(format);
+        if (dsvDesc.ViewDimension == D3D12_DSV_DIMENSION_TEXTURE2D)
+        {
+            SRVDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+            SRVDesc.Texture2D.MipLevels = 1;
+        }
+        else
+        {
+            SRVDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2DMS;
+        }
+        SRVDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+        CD3DX12_CPU_DESCRIPTOR_HANDLE srvHandle(m_srvHeap->GetCPUDescriptorHandleForHeapStart(), DepthSRV, m_cbvUavSrvDescSize);
+        m_device->CreateShaderResourceView(m_depthStencil.Get(), &SRVDesc, srvHandle);
     }
 
     // Create synchronization objects and wait until assets have been uploaded to the GPU.
@@ -464,6 +499,99 @@ D12Renderer::~D12Renderer()
     WaitIdle();
 
     CloseHandle(m_fenceEvent);
+}
+
+DXGI_FORMAT D12Renderer::GetDSVFormat(DXGI_FORMAT defaultFormat)
+{
+    switch (defaultFormat)
+    {
+        // 32-bit Z w/ Stencil
+    case DXGI_FORMAT_R32G8X24_TYPELESS:
+    case DXGI_FORMAT_D32_FLOAT_S8X24_UINT:
+    case DXGI_FORMAT_R32_FLOAT_X8X24_TYPELESS:
+    case DXGI_FORMAT_X32_TYPELESS_G8X24_UINT:
+        return DXGI_FORMAT_D32_FLOAT_S8X24_UINT;
+
+        // No Stencil
+    case DXGI_FORMAT_R32_TYPELESS:
+    case DXGI_FORMAT_D32_FLOAT:
+    case DXGI_FORMAT_R32_FLOAT:
+        return DXGI_FORMAT_D32_FLOAT;
+
+        // 24-bit Z
+    case DXGI_FORMAT_R24G8_TYPELESS:
+    case DXGI_FORMAT_D24_UNORM_S8_UINT:
+    case DXGI_FORMAT_R24_UNORM_X8_TYPELESS:
+    case DXGI_FORMAT_X24_TYPELESS_G8_UINT:
+        return DXGI_FORMAT_D24_UNORM_S8_UINT;
+
+        // 16-bit Z w/o Stencil
+    case DXGI_FORMAT_R16_TYPELESS:
+    case DXGI_FORMAT_D16_UNORM:
+    case DXGI_FORMAT_R16_UNORM:
+        return DXGI_FORMAT_D16_UNORM;
+
+    default:
+        return defaultFormat;
+    }
+}
+
+DXGI_FORMAT D12Renderer::GetDepthFormat(DXGI_FORMAT defaultFormat)
+{
+    switch (defaultFormat)
+    {
+        // 32-bit Z w/ Stencil
+    case DXGI_FORMAT_R32G8X24_TYPELESS:
+    case DXGI_FORMAT_D32_FLOAT_S8X24_UINT:
+    case DXGI_FORMAT_R32_FLOAT_X8X24_TYPELESS:
+    case DXGI_FORMAT_X32_TYPELESS_G8X24_UINT:
+        return DXGI_FORMAT_R32_FLOAT_X8X24_TYPELESS;
+
+        // No Stencil
+    case DXGI_FORMAT_R32_TYPELESS:
+    case DXGI_FORMAT_D32_FLOAT:
+    case DXGI_FORMAT_R32_FLOAT:
+        return DXGI_FORMAT_R32_FLOAT;
+
+        // 24-bit Z
+    case DXGI_FORMAT_R24G8_TYPELESS:
+    case DXGI_FORMAT_D24_UNORM_S8_UINT:
+    case DXGI_FORMAT_R24_UNORM_X8_TYPELESS:
+    case DXGI_FORMAT_X24_TYPELESS_G8_UINT:
+        return DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
+
+        // 16-bit Z w/o Stencil
+    case DXGI_FORMAT_R16_TYPELESS:
+    case DXGI_FORMAT_D16_UNORM:
+    case DXGI_FORMAT_R16_UNORM:
+        return DXGI_FORMAT_R16_UNORM;
+
+    default:
+        return DXGI_FORMAT_UNKNOWN;
+    }
+}
+
+DXGI_FORMAT D12Renderer::GetStencilFormat(DXGI_FORMAT defaultFormat)
+{
+    switch (defaultFormat)
+    {
+        // 32-bit Z w/ Stencil
+    case DXGI_FORMAT_R32G8X24_TYPELESS:
+    case DXGI_FORMAT_D32_FLOAT_S8X24_UINT:
+    case DXGI_FORMAT_R32_FLOAT_X8X24_TYPELESS:
+    case DXGI_FORMAT_X32_TYPELESS_G8X24_UINT:
+        return DXGI_FORMAT_X32_TYPELESS_G8X24_UINT;
+
+        // 24-bit Z
+    case DXGI_FORMAT_R24G8_TYPELESS:
+    case DXGI_FORMAT_D24_UNORM_S8_UINT:
+    case DXGI_FORMAT_R24_UNORM_X8_TYPELESS:
+    case DXGI_FORMAT_X24_TYPELESS_G8_UINT:
+        return DXGI_FORMAT_X24_TYPELESS_G8_UINT;
+
+    default:
+        return DXGI_FORMAT_UNKNOWN;
+    }
 }
 
 void D12Renderer::RenderBegin()
@@ -746,10 +874,10 @@ void D12Renderer::UpdateMaterial(Material* mat)
     
     m_commandList->SetDescriptorHeaps(1, ppHeaps + 1);
     // t0 t1
-    CD3DX12_GPU_DESCRIPTOR_HANDLE srvT0Handle(m_srvHeap->GetGPUDescriptorHandleForHeapStart(), m_diffuseTex->GetTextureData()->GetTexId(), m_cbvUavSrvDescSize);
+    CD3DX12_GPU_DESCRIPTOR_HANDLE srvT0Handle(m_srvHeap->GetGPUDescriptorHandleForHeapStart(), m_diffuseTex->GetTextureData()->GetTexId() + ReverseSRVCount, m_cbvUavSrvDescSize);
     m_commandList->SetGraphicsRootDescriptorTable(RootParameterIndex::SrvParameter0, srvT0Handle);
 
-    CD3DX12_GPU_DESCRIPTOR_HANDLE srvT1Handle(m_srvHeap->GetGPUDescriptorHandleForHeapStart(), m_normalTex->GetTextureData()->GetTexId(), m_cbvUavSrvDescSize);
+    CD3DX12_GPU_DESCRIPTOR_HANDLE srvT1Handle(m_srvHeap->GetGPUDescriptorHandleForHeapStart(), m_normalTex->GetTextureData()->GetTexId() + ReverseSRVCount, m_cbvUavSrvDescSize);
     m_commandList->SetGraphicsRootDescriptorTable(RootParameterIndex::SrvParameter1, srvT1Handle);
 }
 
@@ -815,7 +943,7 @@ void D12Renderer::CreateTexture(void* imageData, int width, int height, DXGI_FOR
     D3D12_RESOURCE_BARRIER resBarrier = CD3DX12_RESOURCE_BARRIER::Transition(texture.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
     m_commandList->ResourceBarrier(1, &resBarrier);
 
-    CD3DX12_CPU_DESCRIPTOR_HANDLE hSrvHeap(m_srvHeap->GetCPUDescriptorHandleForHeapStart(), m_texCount, m_cbvUavSrvDescSize);
+    CD3DX12_CPU_DESCRIPTOR_HANDLE hSrvHeap(m_srvHeap->GetCPUDescriptorHandleForHeapStart(), m_texCount + ReverseSRVCount, m_cbvUavSrvDescSize);
     D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
     srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
     srvDesc.Format = textureDesc.Format;
