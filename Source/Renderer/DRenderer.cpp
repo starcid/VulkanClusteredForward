@@ -11,6 +11,8 @@
 #include "GeoDataDX12.h"
 #include "TexDataDX12.h"
 
+#include "TemporalAA.h"
+
 inline std::string HrToString(HRESULT hr)
 {
     char s_str[64] = {};
@@ -298,16 +300,6 @@ D12Renderer::D12Renderer(GLFWwindow* win)
 
     // Create the root signature.
     {
-        D3D12_FEATURE_DATA_ROOT_SIGNATURE featureData = {};
-
-        // This is the highest version the sample supports. If CheckFeatureSupport succeeds, the HighestVersion returned will not be greater than this.
-        featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_1;
-
-        if (FAILED(m_device->CheckFeatureSupport(D3D12_FEATURE_ROOT_SIGNATURE, &featureData, sizeof(featureData))))
-        {
-            featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_0;
-        }
-
         // Allow input layout and deny unnecessary access to certain pipeline stages.
         D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags =
             D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
@@ -333,15 +325,7 @@ D12Renderer::D12Renderer(GLFWwindow* win)
         rootParameters[RootParameterIndex::SrvParameter1].InitAsDescriptorTable(1, &ParamRanges[4], D3D12_SHADER_VISIBILITY_PIXEL);
         rootParameters[RootParameterIndex::SamplerParameter].InitAsDescriptorTable(1, &ParamRanges[5], D3D12_SHADER_VISIBILITY_PIXEL);
 
-        CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC rootSignatureDescription;
-        rootSignatureDescription.Init_1_1(_countof(rootParameters), rootParameters, 0, nullptr, rootSignatureFlags);
-
-        // Serialize the root signature.
-        ComPtr<ID3DBlob> rootSignatureBlob;
-        ComPtr<ID3DBlob> errorBlob;
-        ThrowIfFailed(D3DX12SerializeVersionedRootSignature(&rootSignatureDescription, featureData.HighestVersion, &rootSignatureBlob, &errorBlob));
-        // Create the root signature.
-        ThrowIfFailed(m_device->CreateRootSignature(0, rootSignatureBlob->GetBufferPointer(), rootSignatureBlob->GetBufferSize(), IID_PPV_ARGS(&m_rootSignature)));
+        CreateRootSignature(rootSignatureFlags, rootParameters, _countof(rootParameters), m_rootSignature);
     }
 
     // Create the pipeline state, which includes loading shaders.
@@ -367,29 +351,7 @@ D12Renderer::D12Renderer(GLFWwindow* win)
         inputLayoutDesc.pInputElementDescs = StandardVertexDescription;
         inputLayoutDesc.NumElements = _countof(StandardVertexDescription);
 
-        CD3DX12_DEPTH_STENCIL_DESC depthStencilDesc(D3D12_DEFAULT);
-        depthStencilDesc.DepthEnable = true;
-        depthStencilDesc.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
-        depthStencilDesc.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
-        depthStencilDesc.StencilEnable = FALSE;
-
-        // Describe and create the PSO for rendering the scene.
-        D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
-        psoDesc.InputLayout = inputLayoutDesc;
-        psoDesc.pRootSignature = m_rootSignature.Get();
-        psoDesc.VS = CD3DX12_SHADER_BYTECODE(vertexShader.data(), vertexShader.size());
-        psoDesc.PS = CD3DX12_SHADER_BYTECODE(pixelShader.data(), pixelShader.size());
-        psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
-        psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
-        psoDesc.DepthStencilState = depthStencilDesc;
-        psoDesc.SampleMask = UINT_MAX;
-        psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-        psoDesc.NumRenderTargets = 1;
-        psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
-        psoDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
-        psoDesc.SampleDesc.Count = 1;
-
-        ThrowIfFailed(m_device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&m_pipelineState)));
+        CreateGraphicsPipeLineState(vertexShader.data(), vertexShader.size(), pixelShader.data(), pixelShader.size(), true, false, inputLayoutDesc, m_rootSignature, m_pipelineState);
         NAME_D3D12_OBJECT(m_pipelineState);
     }
 
@@ -499,6 +461,12 @@ D12Renderer::~D12Renderer()
     WaitIdle();
 
     CloseHandle(m_fenceEvent);
+}
+
+void D12Renderer::PostProcess()
+{
+    /// taa
+    TemporalAA::Process();
 }
 
 DXGI_FORMAT D12Renderer::GetDSVFormat(DXGI_FORMAT defaultFormat)
@@ -881,6 +849,47 @@ void D12Renderer::UpdateMaterial(Material* mat)
     m_commandList->SetGraphicsRootDescriptorTable(RootParameterIndex::SrvParameter1, srvT1Handle);
 }
 
+void D12Renderer::CreateGraphicsPipeLineState(void* vs, int vsSize, void* ps, int psSize, bool depthEnable, bool stencilEnable, D3D12_INPUT_LAYOUT_DESC& layoutDesc, ComPtr<ID3D12RootSignature>& rootSignature, ComPtr<ID3D12PipelineState>& pipelineState)
+{
+    CD3DX12_DEPTH_STENCIL_DESC depthStencilDesc(D3D12_DEFAULT);
+    depthStencilDesc.DepthEnable = depthEnable;
+    if (depthEnable)
+    {
+        // default
+        depthStencilDesc.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+        depthStencilDesc.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+    }
+    depthStencilDesc.StencilEnable = stencilEnable;
+
+    // Describe and create the PSO for rendering the scene.
+    D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
+    psoDesc.InputLayout = layoutDesc;
+    psoDesc.pRootSignature = rootSignature.Get();
+    psoDesc.VS = CD3DX12_SHADER_BYTECODE(vs, vsSize);
+    psoDesc.PS = CD3DX12_SHADER_BYTECODE(ps, psSize);
+    psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+    psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
+    psoDesc.DepthStencilState = depthStencilDesc;
+    psoDesc.SampleMask = UINT_MAX;
+    psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+    psoDesc.NumRenderTargets = 1;
+    psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+    psoDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
+    psoDesc.SampleDesc.Count = 1;
+
+    ThrowIfFailed(m_device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&pipelineState)));
+}
+
+void D12Renderer::CreateComputePipeLineState(void* cs, int csSize, ComPtr<ID3D12RootSignature>& rootSignature, ComPtr<ID3D12PipelineState>& pipelineState)
+{
+    // Describe and create the PSO for cs
+    D3D12_COMPUTE_PIPELINE_STATE_DESC psoDesc = {};
+    psoDesc.pRootSignature = rootSignature.Get();
+    psoDesc.CS = CD3DX12_SHADER_BYTECODE(cs, csSize);
+
+    ThrowIfFailed(m_device->CreateComputePipelineState(&psoDesc, IID_PPV_ARGS(&pipelineState)));
+}
+
 void D12Renderer::CreateTexture(void* imageData, int width, int height, DXGI_FORMAT format, ComPtr<ID3D12Resource>& texture, ComPtr<ID3D12Resource>& textureUploadHeap, int& texId)
 {
     if (!isRenderBegin)
@@ -1020,6 +1029,29 @@ void D12Renderer::GetHardwareAdapter(IDXGIFactory1* pFactory, IDXGIAdapter1** pp
     }
 
     *ppAdapter = adapter.Detach();
+}
+
+void D12Renderer::CreateRootSignature(D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags, CD3DX12_ROOT_PARAMETER1* rootParameters, int count, ComPtr<ID3D12RootSignature>& rootSignature)
+{
+    D3D12_FEATURE_DATA_ROOT_SIGNATURE featureData = {};
+
+    // This is the highest version the sample supports. If CheckFeatureSupport succeeds, the HighestVersion returned will not be greater than this.
+    featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_1;
+
+    if (FAILED(m_device->CheckFeatureSupport(D3D12_FEATURE_ROOT_SIGNATURE, &featureData, sizeof(featureData))))
+    {
+        featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_0;
+    }
+
+    CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC rootSignatureDescription;
+    rootSignatureDescription.Init_1_1(count, rootParameters, 0, nullptr, rootSignatureFlags);
+
+    // Serialize the root signature.
+    ComPtr<ID3DBlob> rootSignatureBlob;
+    ComPtr<ID3DBlob> errorBlob;
+    ThrowIfFailed(D3DX12SerializeVersionedRootSignature(&rootSignatureDescription, featureData.HighestVersion, &rootSignatureBlob, &errorBlob));
+    // Create the root signature.
+    ThrowIfFailed(m_device->CreateRootSignature(0, rootSignatureBlob->GetBufferPointer(), rootSignatureBlob->GetBufferSize(), IID_PPV_ARGS(&rootSignature)));
 }
 
 void D12Renderer::CreateVertexBuffer(void* vdata, uint32_t single, uint32_t length, ComPtr<ID3D12Resource>& vtxbuf, ComPtr<ID3D12Resource>& bufuploader, D3D12_VERTEX_BUFFER_VIEW& vbv)

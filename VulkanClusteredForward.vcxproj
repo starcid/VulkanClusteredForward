@@ -200,11 +200,13 @@
     <ClCompile Include="Source\Main.cpp" />
     <ClCompile Include="Source\Renderer\Camera.cpp" />
     <ClCompile Include="Source\Renderer\DRenderer.cpp" />
+    <ClCompile Include="Source\Renderer\Effect.cpp" />
     <ClCompile Include="Source\Renderer\extensions_vk.cpp" />
     <ClCompile Include="Source\Renderer\GeoData.cpp" />
     <ClCompile Include="Source\Renderer\GeoDataDX12.cpp" />
     <ClCompile Include="Source\Renderer\GeoDataVK.cpp" />
     <ClCompile Include="Source\Renderer\Light.cpp" />
+    <ClCompile Include="Source\Renderer\LinearizeDepth.cpp" />
     <ClCompile Include="Source\Renderer\Material.cpp" />
     <ClCompile Include="Source\Renderer\MaterialDX12.cpp" />
     <ClCompile Include="Source\Renderer\MaterialVK.cpp" />
@@ -232,12 +234,14 @@
     <ClInclude Include="Source\Renderer\ClusteCulling.h" />
     <ClInclude Include="Source\Renderer\d3dx12.h" />
     <ClInclude Include="Source\Renderer\DRenderer.h" />
+    <ClInclude Include="Source\Renderer\Effect.h" />
     <ClInclude Include="Source\Renderer\extensions_vk.hpp" />
     <ClInclude Include="Source\Renderer\GeoData.h" />
     <ClInclude Include="Source\Renderer\GeoDataDX12.h" />
     <ClInclude Include="Source\Renderer\GeoDataVK.h" />
     <ClInclude Include="Source\Renderer\GLMConfig.h" />
     <ClInclude Include="Source\Renderer\Light.h" />
+    <ClInclude Include="Source\Renderer\LinearizeDepth.h" />
     <ClInclude Include="Source\Renderer\Material.h" />
     <ClInclude Include="Source\Renderer\MaterialDX12.h" />
     <ClInclude Include="Source\Renderer\MaterialVK.h" />
@@ -265,6 +269,22 @@
     <Object Include="Source\Ispc\cluste_culling_ispc_sse4.obj" />
   </ItemGroup>
   <ItemGroup>
+    <FxCompile Include="Source\Shader\CameraVelocityCS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.0</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>
+      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(ProjectDir)Data\\shader\\%(Filename).cso</ObjectFileOutput>
+      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(ProjectDir)Data\\shader\\%(Filename).cso</ObjectFileOutput>
+    </FxCompile>
+    <FxCompile Include="Source\Shader\LinearizeDepthCS.hlsl">
+      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(ProjectDir)Data\\shader\\%(Filename).cso</ObjectFileOutput>
+      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(ProjectDir)Data\\shader\\%(Filename).cso</ObjectFileOutput>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.0</ShaderModel>
+    </FxCompile>
     <FxCompile Include="Source\Shader\tinyobj_frag.hlsl">
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">PSMain</EntryPointName>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>

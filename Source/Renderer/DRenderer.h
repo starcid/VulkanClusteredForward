@@ -62,6 +62,8 @@ public:
 
 	virtual void OnSceneExit();
 
+	void CreateRootSignature(D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags, CD3DX12_ROOT_PARAMETER1* rootParameters, int count, ComPtr<ID3D12RootSignature>& rootSignature);
+
 	void CreateVertexBuffer(void* vdata, uint32_t single, uint32_t length, ComPtr<ID3D12Resource>& vtxbuf, ComPtr<ID3D12Resource>&bufuploader, D3D12_VERTEX_BUFFER_VIEW& vbv);
 	void CreateIndexBuffer(void* idata, uint32_t single, uint32_t length, ComPtr<ID3D12Resource>& indicebuf, ComPtr<ID3D12Resource>& bufuploader, D3D12_INDEX_BUFFER_VIEW& ibv);
 
@@ -69,6 +71,9 @@ public:
 	void CreateUAVBuffer(void** data, uint32_t single, uint32_t length, ComPtr<ID3D12Resource>& uavbuf, CD3DX12_CPU_DESCRIPTOR_HANDLE& heapHandle);
 
 	void CreateTexture(void* imageData, int width, int height, DXGI_FORMAT format, ComPtr<ID3D12Resource>& texture, ComPtr<ID3D12Resource>& textureUploadHeap, int& texId);
+
+	void CreateGraphicsPipeLineState(void* vs, int vsSize, void* ps, int psSize, bool depthEnable, bool stencilEnable, D3D12_INPUT_LAYOUT_DESC& layoutDesc, ComPtr<ID3D12RootSignature>& rootSignature, ComPtr<ID3D12PipelineState>& pipelineState);
+	void CreateComputePipeLineState(void* cs, int csSize, ComPtr<ID3D12RootSignature>& rootSignature, ComPtr<ID3D12PipelineState>& pipelineState);
 
 	inline ComPtr<ID3D12DescriptorHeap>& GetMatCbvHeap() { return m_matCbvHeap; }
 	inline int GetCbvUavSrvDescSize() { return m_cbvUavSrvDescSize; }
@@ -141,6 +146,8 @@ private:
 	int CalcConstantBufferByteSize(int byteSize);
 
 	void CreateResources();
+
+	void PostProcess();
 
 private:
 	ComPtr<IDXGISwapChain3> m_swapChain;

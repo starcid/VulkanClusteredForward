@@ -97,6 +97,12 @@
     <ClCompile Include="Source\Renderer\TemporalAA.cpp">
       <Filter>Source\Renderer</Filter>
     </ClCompile>
+    <ClCompile Include="Source\Renderer\Effect.cpp">
+      <Filter>Source\Renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Renderer\LinearizeDepth.cpp">
+      <Filter>Source\Renderer</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ThirdParty\tinyobjloader\tiny_obj_loader.h">
@@ -204,6 +210,12 @@
     <ClInclude Include="Source\Renderer\TemporalAA.h">
       <Filter>Source\Renderer</Filter>
     </ClInclude>
+    <ClInclude Include="Source\Renderer\Effect.h">
+      <Filter>Source\Renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Renderer\LinearizeDepth.h">
+      <Filter>Source\Renderer</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Object Include="Source\Ispc\cluste_culling_ispc_avx512knl.obj">
@@ -233,6 +245,12 @@
       <Filter>Source\Shader</Filter>
     </FxCompile>
     <FxCompile Include="Source\Shader\tinyobj_frag.hlsl">
+      <Filter>Source\Shader</Filter>
+    </FxCompile>
+    <FxCompile Include="Source\Shader\CameraVelocityCS.hlsl">
+      <Filter>Source\Shader</Filter>
+    </FxCompile>
+    <FxCompile Include="Source\Shader\LinearizeDepthCS.hlsl">
       <Filter>Source\Shader</Filter>
     </FxCompile>
   </ItemGroup>
