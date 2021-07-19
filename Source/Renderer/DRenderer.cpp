@@ -11,8 +11,6 @@
 #include "GeoDataDX12.h"
 #include "TexDataDX12.h"
 
-#include "TemporalAA.h"
-
 inline std::string HrToString(HRESULT hr)
 {
     char s_str[64] = {};
@@ -100,6 +98,7 @@ D12Renderer::D12Renderer(GLFWwindow* win)
     UINT dxgiFactoryFlags = 0;
     m_texCount = 0;
     m_lastFrameIndex = -1;
+    m_bTaa = false;
 
 #if defined(_DEBUG)
     // Enable the debug layer (requires the Graphics Tools "optional feature").
@@ -429,6 +428,12 @@ D12Renderer::~D12Renderer()
     CloseHandle(m_fenceEvent);
 }
 
+D3D12_GPU_DESCRIPTOR_HANDLE D12Renderer::GetDepthStencilGpuHandle()
+{
+    CD3DX12_GPU_DESCRIPTOR_HANDLE srvHandle(m_srvHeap->GetGPUDescriptorHandleForHeapStart(), DepthSRV, m_descSize[D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV]);
+    return srvHandle;
+}
+
 int D12Renderer::GetDescSize(D3D12_DESCRIPTOR_HEAP_TYPE type)
 { 
     return m_descSize[type];
@@ -437,7 +442,7 @@ int D12Renderer::GetDescSize(D3D12_DESCRIPTOR_HEAP_TYPE type)
 void D12Renderer::PostProcess()
 {
     /// taa
-    TemporalAA::Process();
+    
 }
 
 DXGI_FORMAT D12Renderer::GetBaseFormat(DXGI_FORMAT defaultFormat)
@@ -663,8 +668,13 @@ void D12Renderer::RenderBegin()
     m_commandList->RSSetScissorRects(1, &m_scissorRect);
 
     // Indicate that the back buffer will be used as a render target.
-    m_transtionBarrier = CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
-    m_commandList->ResourceBarrier(1, &m_transtionBarrier);
+    TransitionResource(m_renderTargets[m_frameIndex], D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
+
+    // depth buffer for write
+    if (m_bTaa)
+    {
+        TransitionResource(m_depthStencil, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE);
+    }
 
     CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart(), m_frameIndex, m_descSize[D3D12_DESCRIPTOR_HEAP_TYPE_RTV]);
     CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHandle(m_dsvHeap->GetCPUDescriptorHandleForHeapStart());
@@ -681,9 +691,10 @@ void D12Renderer::RenderBegin()
 
 void D12Renderer::RenderEnd()
 {
+    PostProcess();
+
     // Indicate that the back buffer will now be used to present.
-    m_transtionBarrier = CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
-    m_commandList->ResourceBarrier(1, &m_transtionBarrier);
+    TransitionResource(m_renderTargets[m_frameIndex], D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
     ThrowIfFailed(m_commandList->Close());
 
     Renderer::RenderEnd();
@@ -1010,8 +1021,7 @@ void D12Renderer::CreateTexture(void* imageData, int width, int height, DXGI_FOR
 
     UpdateSubresources(m_commandList.Get(), texture.Get(), textureUploadHeap.Get(), 0, 0, 1, &textureData);
 
-    D3D12_RESOURCE_BARRIER resBarrier = CD3DX12_RESOURCE_BARRIER::Transition(texture.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-    m_commandList->ResourceBarrier(1, &resBarrier);
+    TransitionResource(texture, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
     CD3DX12_CPU_DESCRIPTOR_HANDLE hSrvHeap(m_srvHeap->GetCPUDescriptorHandleForHeapStart(), m_texCount + ReverseSRVCount, m_descSize[D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV]);
     D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
@@ -1132,7 +1142,7 @@ void D12Renderer::CreateVertexBuffer(void* vdata, uint32_t single, uint32_t leng
     }
 
     const UINT vertexBufferSize = single * length;
-    CreateDefaultBuffer(m_device, m_commandList, vdata, vertexBufferSize, vtxbuf, bufuploader);
+    CreateDefaultBuffer(vdata, vertexBufferSize, vtxbuf, bufuploader);
 
     vbv.BufferLocation = vtxbuf->GetGPUVirtualAddress();
     vbv.StrideInBytes = single;
@@ -1158,7 +1168,7 @@ void D12Renderer::CreateIndexBuffer(void* idata, uint32_t single, uint32_t lengt
     }
 
     const UINT indiceBufferSize = single * length;
-    CreateDefaultBuffer(m_device, m_commandList, idata, indiceBufferSize, indicebuf, bufuploader);
+    CreateDefaultBuffer(idata, indiceBufferSize, indicebuf, bufuploader);
 
     ibv.BufferLocation = indicebuf->GetGPUVirtualAddress();
     ibv.Format = DXGI_FORMAT_R32_UINT;
@@ -1343,12 +1353,12 @@ void D12Renderer::CreateSrvUavTexArray(int width, int height, DXGI_FORMAT format
     m_device->CreateUnorderedAccessView(srvuavBuf.Get(), nullptr, &uavDesc, uavHeapHandle);
 }
 
-void D12Renderer::CreateDefaultBuffer(ComPtr<ID3D12Device>& device, ComPtr<ID3D12GraphicsCommandList>& cmdList, const void* initData, UINT64 byteSize, Microsoft::WRL::ComPtr<ID3D12Resource>& buffer, Microsoft::WRL::ComPtr<ID3D12Resource>& uploadBuffer)
+void D12Renderer::CreateDefaultBuffer(const void* initData, UINT64 byteSize, Microsoft::WRL::ComPtr<ID3D12Resource>& buffer, Microsoft::WRL::ComPtr<ID3D12Resource>& uploadBuffer)
 {
     // Create the actual default buffer resource.
     D3D12_HEAP_PROPERTIES heapProperty = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
     D3D12_RESOURCE_DESC resDesc = CD3DX12_RESOURCE_DESC::Buffer(byteSize);
-    ThrowIfFailed(device->CreateCommittedResource(
+    ThrowIfFailed(m_device->CreateCommittedResource(
         &heapProperty,
         D3D12_HEAP_FLAG_NONE,
         &resDesc,
@@ -1360,7 +1370,7 @@ void D12Renderer::CreateDefaultBuffer(ComPtr<ID3D12Device>& device, ComPtr<ID3D1
     // to create an intermediate upload heap.
     heapProperty = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
     resDesc = CD3DX12_RESOURCE_DESC::Buffer(byteSize);
-    ThrowIfFailed(device->CreateCommittedResource(
+    ThrowIfFailed(m_device->CreateCommittedResource(
         &heapProperty,
         D3D12_HEAP_FLAG_NONE,
         &resDesc,
@@ -1379,13 +1389,9 @@ void D12Renderer::CreateDefaultBuffer(ComPtr<ID3D12Device>& device, ComPtr<ID3D1
     // will copy the CPU memory into the intermediate upload heap.
     // Then, using ID3D12CommandList::CopySubresourceRegion,
     // the intermediate upload heap data will be copied to mBuffer.
-    D3D12_RESOURCE_BARRIER resBarrier = CD3DX12_RESOURCE_BARRIER::Transition(buffer.Get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_COPY_DEST);
-    cmdList->ResourceBarrier(1, &resBarrier);
-    UpdateSubresources<1>(cmdList.Get(),
-        buffer.Get(), uploadBuffer.Get(),
-        0, 0, 1, &subResourceData);
-    resBarrier = CD3DX12_RESOURCE_BARRIER::Transition(buffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_GENERIC_READ);
-    cmdList->ResourceBarrier(1, &resBarrier);
+    TransitionResource(buffer, D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_COPY_DEST);
+    UpdateSubresources<1>(m_commandList.Get(), buffer.Get(), uploadBuffer.Get(), 0, 0, 1, &subResourceData);
+    TransitionResource(buffer, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_GENERIC_READ);
 }
 
 void D12Renderer::SetRootSignature(ComPtr<ID3D12RootSignature>& rootSignature)
@@ -1410,4 +1416,25 @@ void D12Renderer::TransitionResource(ComPtr<ID3D12Resource>& resource, D3D12_RES
         D3D12_RESOURCE_BARRIER resBarrier = CD3DX12_RESOURCE_BARRIER::UAV(resource.Get());
         m_commandList->ResourceBarrier(1, &resBarrier);
     }
+}
+
+void D12Renderer::SetComputeConstants(UINT RootIndex, DWParam X)
+{
+    m_commandList->SetComputeRoot32BitConstant(RootIndex, X.Uint, 0);
+}
+
+void D12Renderer::SetComputeRootDescriptorTable(UINT RootIndex, D3D12_GPU_DESCRIPTOR_HANDLE handleStart, int offset, D3D12_DESCRIPTOR_HEAP_TYPE type)
+{
+    CD3DX12_GPU_DESCRIPTOR_HANDLE handle(handleStart, offset, m_descSize[type]);
+    SetComputeRootDescriptorTable(RootIndex, handle);
+}
+
+void D12Renderer::SetComputeRootDescriptorTable(UINT RootIndex, D3D12_GPU_DESCRIPTOR_HANDLE handle)
+{
+    m_commandList->SetComputeRootDescriptorTable(RootIndex, handle);
+}
+
+void D12Renderer::Dispatch2D(size_t ThreadCountX, size_t ThreadCountY, size_t GroupSizeX, size_t GroupSizeY)
+{
+    m_commandList->Dispatch(Utils::DivideByMultiple(ThreadCountX, GroupSizeX), Utils::DivideByMultiple(ThreadCountY, GroupSizeY), 1);
 }

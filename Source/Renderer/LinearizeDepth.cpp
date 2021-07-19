@@ -48,7 +48,7 @@ LinearizeDepth::~LinearizeDepth()
 	
 }
 
-void LinearizeDepth::Process(D3D12_GPU_DESCRIPTOR_HANDLE* inputs, int inputCount, D3D12_GPU_DESCRIPTOR_HANDLE* outputs, int outputCount)
+void LinearizeDepth::Process()
 {
     Camera* pCamera = m_pRenderer->GetCamera();
     float farClip = pCamera->GetFarDistance();
@@ -59,4 +59,10 @@ void LinearizeDepth::Process(D3D12_GPU_DESCRIPTOR_HANDLE* inputs, int inputCount
     dRenderer->SetRootSignature(m_rootSignature);
     dRenderer->SetPipelineState(m_pipelineState);
 
+    dRenderer->TransitionResource(dRenderer->GetDepthStencil(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+    dRenderer->TransitionResource(m_linearDepth, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+    dRenderer->SetComputeConstants(0, zMagic);
+    dRenderer->SetComputeRootDescriptorTable(1, m_srvUavHeap->GetGPUDescriptorHandleForHeapStart(), dRenderer->GetFrameIndex() * 2 + 0, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+    dRenderer->SetComputeRootDescriptorTable(2, dRenderer->GetDepthStencilGpuHandle());
+    dRenderer->Dispatch2D(dRenderer->GetWinWidth(), dRenderer->GetWinHeight(), 16, 16);
 }

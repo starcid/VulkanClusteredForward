@@ -12,7 +12,7 @@ public:
 	Effect( Renderer* pRenderer );
 	virtual ~Effect();
 
-	virtual void Process(D3D12_GPU_DESCRIPTOR_HANDLE* inputs, int inputCount, D3D12_GPU_DESCRIPTOR_HANDLE* outputs, int outputCount) = 0;
+	virtual void Process() = 0;
 
 protected:
 	Renderer* m_pRenderer;

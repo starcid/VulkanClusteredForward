@@ -9,7 +9,7 @@ public:
 	LinearizeDepth(Renderer* pRenderer);
 	virtual ~LinearizeDepth();
 
-	void Process(D3D12_GPU_DESCRIPTOR_HANDLE* inputs, int inputCount, D3D12_GPU_DESCRIPTOR_HANDLE* outputs, int outputCount);
+	virtual void Process();
 
 private:
 	ComPtr<ID3D12RootSignature> m_rootSignature;

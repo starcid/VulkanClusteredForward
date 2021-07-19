@@ -94,9 +94,6 @@
     <ClCompile Include="Source\Renderer\MaterialDX12.cpp">
       <Filter>Source\Renderer</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Renderer\TemporalAA.cpp">
-      <Filter>Source\Renderer</Filter>
-    </ClCompile>
     <ClCompile Include="Source\Renderer\Effect.cpp">
       <Filter>Source\Renderer</Filter>
     </ClCompile>
@@ -205,9 +202,6 @@
       <Filter>Source\Renderer</Filter>
     </ClInclude>
     <ClInclude Include="Source\Renderer\MaterialDX12.h">
-      <Filter>Source\Renderer</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\Renderer\TemporalAA.h">
       <Filter>Source\Renderer</Filter>
     </ClInclude>
     <ClInclude Include="Source\Renderer\Effect.h">

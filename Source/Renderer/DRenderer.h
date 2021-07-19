@@ -61,6 +61,7 @@ public:
 	virtual void ClearLight();
 
 	virtual int GetFrameBufferCount() { return frameCount; }
+	virtual int GetFrameIndex() { return m_frameIndex; }
 
 	virtual void OnSceneExit();
 
@@ -86,6 +87,14 @@ public:
 	void SetRootSignature(ComPtr<ID3D12RootSignature>& rootSignature);
 	void SetPipelineState(ComPtr<ID3D12PipelineState>& pipelineState);
 	void TransitionResource(ComPtr<ID3D12Resource>& resource, D3D12_RESOURCE_STATES oldState, D3D12_RESOURCE_STATES newState);
+	
+	void SetComputeConstants(UINT RootIndex, DWParam X);
+	void SetComputeRootDescriptorTable(UINT RootIndex, D3D12_GPU_DESCRIPTOR_HANDLE handleStart, int offset, D3D12_DESCRIPTOR_HEAP_TYPE type);
+	void SetComputeRootDescriptorTable(UINT RootIndex, D3D12_GPU_DESCRIPTOR_HANDLE handle);
+	void Dispatch2D(size_t ThreadCountX, size_t ThreadCountY, size_t GroupSizeX = 8, size_t GroupSizeY = 8);
+
+	ComPtr<ID3D12Resource>& GetDepthStencil() { return m_depthStencil; }
+	D3D12_GPU_DESCRIPTOR_HANDLE GetDepthStencilGpuHandle();
 
 private:
 	struct VertexBufferCreateInfo
@@ -133,7 +142,7 @@ private:
 
 private:
 	void GetHardwareAdapter(_In_ IDXGIFactory1* pFactory, _Outptr_result_maybenull_ IDXGIAdapter1** ppAdapter, bool requestHighPerformanceAdapter = false);
-	void CreateDefaultBuffer(ComPtr<ID3D12Device>& device, ComPtr<ID3D12GraphicsCommandList>& cmdList, const void* initData, UINT64 byteSize, Microsoft::WRL::ComPtr<ID3D12Resource>& buffer, ComPtr<ID3D12Resource>& uploadBuffer);
+	void CreateDefaultBuffer(const void* initData, UINT64 byteSize, Microsoft::WRL::ComPtr<ID3D12Resource>& buffer, ComPtr<ID3D12Resource>& uploadBuffer);
 
 	void SetMvpMatrix(glm::mat4x4& mvpMtx);
 	void SetModelMatrix(glm::mat4x4& mtx);
@@ -210,6 +219,8 @@ private:
 	HANDLE m_fenceEvent;
 	ComPtr<ID3D12Fence> m_fence;
 	UINT64 m_fenceValues[frameCount];
+
+	bool m_bTaa;
 };
 
 #endif // !__D12_RENDERER_H__

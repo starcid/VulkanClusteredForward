@@ -48,6 +48,7 @@ public:
 	virtual void ClearLight();
 
 	virtual int GetFrameBufferCount() { return 2; }
+	virtual int GetFrameIndex() { return active_command_buffer_idx; }
 
 	virtual void OnSceneExit();
 

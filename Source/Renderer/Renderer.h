@@ -19,6 +19,24 @@
 #define MAX_MESH_SHADER_PRIMITIVE 126
 #define MAX_MESH_SHADER_VERTICES 64
 
+struct DWParam
+{
+	DWParam(FLOAT f) : Float(f) {}
+	DWParam(UINT u) : Uint(u) {}
+	DWParam(INT i) : Int(i) {}
+
+	void operator= (FLOAT f) { Float = f; }
+	void operator= (UINT u) { Uint = u; }
+	void operator= (INT i) { Int = i; }
+
+	union
+	{
+		FLOAT Float;
+		UINT Uint;
+		INT Int;
+	};
+};
+
 /// one buffers(simple first)
 struct Vertex {
 	glm::vec4 pos;
@@ -138,6 +156,7 @@ public:
 	virtual void ClearLight();
 
 	virtual int GetFrameBufferCount() = 0;
+	virtual int GetFrameIndex() = 0;
 
 	inline int GetWinWidth() { return winWidth; }
 	inline int GetWinHeight() { return winHeight; }

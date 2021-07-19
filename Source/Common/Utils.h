@@ -11,6 +11,11 @@ namespace Utils
 
 	void GetMSStart();
 	double GetMSEnd();
+
+	template <typename T> __forceinline T DivideByMultiple(T value, size_t alignment)
+	{
+		return (T)((value + alignment - 1) / alignment);
+	}
 };
 
 #endif // !__UTILS_H__
