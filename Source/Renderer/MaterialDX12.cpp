@@ -15,7 +15,7 @@ void MaterialDX12::InitPlatform()
 {
 	D12Renderer* dRenderer = (D12Renderer*)Application::Inst()->GetRenderer();
 
-	CD3DX12_CPU_DESCRIPTOR_HANDLE hMatCbvHeap(dRenderer->GetMatCbvHeap()->GetCPUDescriptorHandleForHeapStart(), mat_id, dRenderer->GetCbvUavSrvDescSize());
+	CD3DX12_CPU_DESCRIPTOR_HANDLE hMatCbvHeap(dRenderer->GetMatCbvHeap()->GetCPUDescriptorHandleForHeapStart(), mat_id, dRenderer->GetDescSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
 	dRenderer->CreateConstBuffer(&m_matConstBufferBegin, sizeof(MaterialData), m_matConstBuffer, hMatCbvHeap);
 
 	MaterialData* matData = (MaterialData*)m_matConstBufferBegin;

@@ -47,6 +47,8 @@ public:
 	virtual void AddLight(PointLight* light);
 	virtual void ClearLight();
 
+	virtual int GetFrameBufferCount() { return 2; }
+
 	virtual void OnSceneExit();
 
 	inline VkCommandBuffer CurrentCommandBuffer() { return command_buffers[active_command_buffer_idx]; }

@@ -137,6 +137,11 @@ public:
 	virtual void AddLight(PointLight* light);
 	virtual void ClearLight();
 
+	virtual int GetFrameBufferCount() = 0;
+
+	inline int GetWinWidth() { return winWidth; }
+	inline int GetWinHeight() { return winHeight; }
+
 	void SetCamera(Camera* c) { camera = c; }
 	Camera* GetCamera() { return camera; }
 

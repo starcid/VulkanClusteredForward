@@ -183,71 +183,37 @@ D12Renderer::D12Renderer(GLFWwindow* win)
     // Create descriptor heaps.
     {
         // Describe and create a render target view (RTV) descriptor heap.
-        D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc = {};
-        rtvHeapDesc.NumDescriptors = frameCount;
-        rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
-        rtvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-        ThrowIfFailed(m_device->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(&m_rtvHeap)));
-
-        m_rtvDescriptorSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+        CreateDescriptorHeap(frameCount, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, D3D12_DESCRIPTOR_HEAP_FLAG_NONE, m_rtvHeap);
+        m_descSize[D3D12_DESCRIPTOR_HEAP_TYPE_RTV] = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 
         // Describe and create a depth stencil view (DSV) descriptor heap.
         // Each frame has its own depth stencils (to write shadows onto) 
         // and then there is one for the scene itself.
-        D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc = {};
-        dsvHeapDesc.NumDescriptors = 1;
-        dsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
-        dsvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-        ThrowIfFailed(m_device->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(&m_dsvHeap)));
-
-        m_dsvDescSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
+        CreateDescriptorHeap(1, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, D3D12_DESCRIPTOR_HEAP_FLAG_NONE, m_dsvHeap);
+        m_descSize[D3D12_DESCRIPTOR_HEAP_TYPE_DSV] = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
 
         // CBV heap b0 b1
-        const UINT cbvCount = frameCount * 2;
-        D3D12_DESCRIPTOR_HEAP_DESC cbvHeapDesc = {};
-        cbvHeapDesc.NumDescriptors = cbvCount;
-        cbvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-        cbvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-        ThrowIfFailed(m_device->CreateDescriptorHeap(&cbvHeapDesc, IID_PPV_ARGS(&m_cbvHeap)));
+        CreateDescriptorHeap(frameCount * 2, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE, m_cbvHeap);
         NAME_D3D12_OBJECT(m_cbvHeap);
 
         // mat cbv b2
-        const UINT matCbvCount = MAX_MATERIAL_NUM;
-        D3D12_DESCRIPTOR_HEAP_DESC matCbvHeapDesc = {};
-        matCbvHeapDesc.NumDescriptors = matCbvCount;
-        matCbvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-        matCbvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-        ThrowIfFailed(m_device->CreateDescriptorHeap(&matCbvHeapDesc, IID_PPV_ARGS(&m_matCbvHeap)));
+        CreateDescriptorHeap(MAX_MATERIAL_NUM, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE, m_matCbvHeap);
         NAME_D3D12_OBJECT(m_matCbvHeap);
 
         // UAV u1 u2
-        const UINT uavCount = frameCount * 2;
-        D3D12_DESCRIPTOR_HEAP_DESC uavHeapDesc = {};
-        uavHeapDesc.NumDescriptors = uavCount;
-        uavHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-        uavHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-        ThrowIfFailed(m_device->CreateDescriptorHeap(&uavHeapDesc, IID_PPV_ARGS(&m_uavHeap)));
+        CreateDescriptorHeap(frameCount * 2, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE, m_uavHeap);
         NAME_D3D12_OBJECT(m_uavHeap);
 
         // SRV t0 t1
-        const UINT srvCount = ReverseSRVCount + MAX_MATERIAL_NUM * 2 + 1; // normal & diffuse + default
-        D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
-        srvHeapDesc.NumDescriptors = srvCount;
-        srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-        srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-        ThrowIfFailed(m_device->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(&m_srvHeap)));
+        CreateDescriptorHeap(ReverseSRVCount + MAX_MATERIAL_NUM * 2 + 1, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE, m_srvHeap);
         NAME_D3D12_OBJECT(m_srvHeap);
 
-        m_cbvUavSrvDescSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+        m_descSize[D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV] = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
         // sample s0 s1
-        D3D12_DESCRIPTOR_HEAP_DESC samplerHeapDesc = {};
-        samplerHeapDesc.NumDescriptors = 2;
-        samplerHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER;
-        samplerHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-        ThrowIfFailed(m_device->CreateDescriptorHeap(&samplerHeapDesc, IID_PPV_ARGS(&m_samplerHeap)));
+        CreateDescriptorHeap(2, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE, m_samplerHeap);
         NAME_D3D12_OBJECT(m_samplerHeap);
-        m_samplerDescSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
+        m_descSize[D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER] = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
     }
 
     // Create samplers
@@ -270,7 +236,7 @@ D12Renderer::D12Renderer(GLFWwindow* win)
         for (int i = 0; i < 2; i++)
         {
             m_device->CreateSampler(&sampleDesc, hSamplerHeap);
-            hSamplerHeap.Offset(m_samplerDescSize);
+            hSamplerHeap.Offset(m_descSize[D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER]);
         }
     }
 
@@ -280,9 +246,9 @@ D12Renderer::D12Renderer(GLFWwindow* win)
         for (int i = 0; i < frameCount; i++)
         {
             CreateConstBuffer(&m_transformConstBufferBegin[i], sizeof(TransformData), m_transformConstBuffer[i], hCbvHeap);
-            hCbvHeap.Offset(m_cbvUavSrvDescSize);
+            hCbvHeap.Offset(m_descSize[D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV]);
             CreateConstBuffer(&m_lightConstBufferBegin[i], sizeof(PointLightData) * MAX_LIGHT_NUM, m_lightConstBuffer[i], hCbvHeap);
-            hCbvHeap.Offset(m_cbvUavSrvDescSize);
+            hCbvHeap.Offset(m_descSize[D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV]);
         }
     }
 
@@ -292,9 +258,9 @@ D12Renderer::D12Renderer(GLFWwindow* win)
         for (int i = 0; i < frameCount; i++)
         {
             CreateUAVBuffer(&m_globalLightIndexUAVBufferBegin[i], sizeof(uint32_t), MAX_LIGHT_NUM * CLUSTE_NUM, m_globalLightIndexUAVBuffer[i], hUavHeap);
-            hUavHeap.Offset(m_cbvUavSrvDescSize);
+            hUavHeap.Offset(m_descSize[D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV]);
             CreateUAVBuffer(&m_lightGridUAVBufferBegin[i], sizeof(LightGrid), CLUSTE_NUM, m_lightGridUAVBuffer[i], hUavHeap);
-            hUavHeap.Offset(m_cbvUavSrvDescSize);
+            hUavHeap.Offset(m_descSize[D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV]);
         }
     }
 
@@ -361,7 +327,7 @@ D12Renderer::D12Renderer(GLFWwindow* win)
     {
         ThrowIfFailed(m_swapChain->GetBuffer(i, IID_PPV_ARGS(&m_renderTargets[i])));
         m_device->CreateRenderTargetView(m_renderTargets[i].Get(), nullptr, rtvHandle);
-        rtvHandle.Offset(1, m_rtvDescriptorSize);
+        rtvHandle.Offset(1, m_descSize[D3D12_DESCRIPTOR_HEAP_TYPE_RTV]);
 
         NAME_D3D12_OBJECT_INDEXED(m_renderTargets, i);
 
@@ -433,7 +399,7 @@ D12Renderer::D12Renderer(GLFWwindow* win)
             SRVDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2DMS;
         }
         SRVDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-        CD3DX12_CPU_DESCRIPTOR_HANDLE srvHandle(m_srvHeap->GetCPUDescriptorHandleForHeapStart(), DepthSRV, m_cbvUavSrvDescSize);
+        CD3DX12_CPU_DESCRIPTOR_HANDLE srvHandle(m_srvHeap->GetCPUDescriptorHandleForHeapStart(), DepthSRV, m_descSize[D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV]);
         m_device->CreateShaderResourceView(m_depthStencil.Get(), &SRVDesc, srvHandle);
     }
 
@@ -463,10 +429,62 @@ D12Renderer::~D12Renderer()
     CloseHandle(m_fenceEvent);
 }
 
+int D12Renderer::GetDescSize(D3D12_DESCRIPTOR_HEAP_TYPE type)
+{ 
+    return m_descSize[type];
+}
+
 void D12Renderer::PostProcess()
 {
     /// taa
     TemporalAA::Process();
+}
+
+DXGI_FORMAT D12Renderer::GetBaseFormat(DXGI_FORMAT defaultFormat)
+{
+    switch (defaultFormat)
+    {
+    case DXGI_FORMAT_R8G8B8A8_UNORM:
+    case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:
+        return DXGI_FORMAT_R8G8B8A8_TYPELESS;
+
+    case DXGI_FORMAT_B8G8R8A8_UNORM:
+    case DXGI_FORMAT_B8G8R8A8_UNORM_SRGB:
+        return DXGI_FORMAT_B8G8R8A8_TYPELESS;
+
+    case DXGI_FORMAT_B8G8R8X8_UNORM:
+    case DXGI_FORMAT_B8G8R8X8_UNORM_SRGB:
+        return DXGI_FORMAT_B8G8R8X8_TYPELESS;
+
+        // 32-bit Z w/ Stencil
+    case DXGI_FORMAT_R32G8X24_TYPELESS:
+    case DXGI_FORMAT_D32_FLOAT_S8X24_UINT:
+    case DXGI_FORMAT_R32_FLOAT_X8X24_TYPELESS:
+    case DXGI_FORMAT_X32_TYPELESS_G8X24_UINT:
+        return DXGI_FORMAT_R32G8X24_TYPELESS;
+
+        // No Stencil
+    case DXGI_FORMAT_R32_TYPELESS:
+    case DXGI_FORMAT_D32_FLOAT:
+    case DXGI_FORMAT_R32_FLOAT:
+        return DXGI_FORMAT_R32_TYPELESS;
+
+        // 24-bit Z
+    case DXGI_FORMAT_R24G8_TYPELESS:
+    case DXGI_FORMAT_D24_UNORM_S8_UINT:
+    case DXGI_FORMAT_R24_UNORM_X8_TYPELESS:
+    case DXGI_FORMAT_X24_TYPELESS_G8_UINT:
+        return DXGI_FORMAT_R24G8_TYPELESS;
+
+        // 16-bit Z w/o Stencil
+    case DXGI_FORMAT_R16_TYPELESS:
+    case DXGI_FORMAT_D16_UNORM:
+    case DXGI_FORMAT_R16_UNORM:
+        return DXGI_FORMAT_R16_TYPELESS;
+
+    default:
+        return defaultFormat;
+    }
 }
 
 DXGI_FORMAT D12Renderer::GetDSVFormat(DXGI_FORMAT defaultFormat)
@@ -562,6 +580,49 @@ DXGI_FORMAT D12Renderer::GetStencilFormat(DXGI_FORMAT defaultFormat)
     }
 }
 
+DXGI_FORMAT D12Renderer::GetUAVFormat(DXGI_FORMAT defaultFormat)
+{
+    switch (defaultFormat)
+    {
+    case DXGI_FORMAT_R8G8B8A8_TYPELESS:
+    case DXGI_FORMAT_R8G8B8A8_UNORM:
+    case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:
+        return DXGI_FORMAT_R8G8B8A8_UNORM;
+
+    case DXGI_FORMAT_B8G8R8A8_TYPELESS:
+    case DXGI_FORMAT_B8G8R8A8_UNORM:
+    case DXGI_FORMAT_B8G8R8A8_UNORM_SRGB:
+        return DXGI_FORMAT_B8G8R8A8_UNORM;
+
+    case DXGI_FORMAT_B8G8R8X8_TYPELESS:
+    case DXGI_FORMAT_B8G8R8X8_UNORM:
+    case DXGI_FORMAT_B8G8R8X8_UNORM_SRGB:
+        return DXGI_FORMAT_B8G8R8X8_UNORM;
+
+    case DXGI_FORMAT_R32_TYPELESS:
+    case DXGI_FORMAT_R32_FLOAT:
+        return DXGI_FORMAT_R32_FLOAT;
+
+#ifdef _DEBUG
+    case DXGI_FORMAT_R32G8X24_TYPELESS:
+    case DXGI_FORMAT_D32_FLOAT_S8X24_UINT:
+    case DXGI_FORMAT_R32_FLOAT_X8X24_TYPELESS:
+    case DXGI_FORMAT_X32_TYPELESS_G8X24_UINT:
+    case DXGI_FORMAT_D32_FLOAT:
+    case DXGI_FORMAT_R24G8_TYPELESS:
+    case DXGI_FORMAT_D24_UNORM_S8_UINT:
+    case DXGI_FORMAT_R24_UNORM_X8_TYPELESS:
+    case DXGI_FORMAT_X24_TYPELESS_G8_UINT:
+    case DXGI_FORMAT_D16_UNORM:
+
+        assert(false, "Requested a UAV format for a depth stencil format.");
+#endif
+
+    default:
+        return defaultFormat;
+    }
+}
+
 void D12Renderer::RenderBegin()
 {
     Renderer::RenderBegin();
@@ -584,13 +645,13 @@ void D12Renderer::RenderBegin()
     m_commandList->SetDescriptorHeaps(1, ppHeaps);
 
     // b0 b1
-    CD3DX12_GPU_DESCRIPTOR_HANDLE cbvHandle(m_cbvHeap->GetGPUDescriptorHandleForHeapStart(), m_frameIndex * 2, m_cbvUavSrvDescSize);
+    CD3DX12_GPU_DESCRIPTOR_HANDLE cbvHandle(m_cbvHeap->GetGPUDescriptorHandleForHeapStart(), m_frameIndex * 2, m_descSize[D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV]);
     m_commandList->SetGraphicsRootDescriptorTable(RootParameterIndex::CbvParameter, cbvHandle);
 
     m_commandList->SetDescriptorHeaps(1, ppHeaps + 1);
 
     // u1 u2
-    CD3DX12_GPU_DESCRIPTOR_HANDLE uavHandle(m_uavHeap->GetGPUDescriptorHandleForHeapStart(), m_frameIndex * 2, m_cbvUavSrvDescSize);
+    CD3DX12_GPU_DESCRIPTOR_HANDLE uavHandle(m_uavHeap->GetGPUDescriptorHandleForHeapStart(), m_frameIndex * 2, m_descSize[D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV]);
     m_commandList->SetGraphicsRootDescriptorTable(RootParameterIndex::UavParameter, uavHandle);
 
     m_commandList->SetDescriptorHeaps(1, ppHeaps + 2);
@@ -605,7 +666,7 @@ void D12Renderer::RenderBegin()
     m_transtionBarrier = CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
     m_commandList->ResourceBarrier(1, &m_transtionBarrier);
 
-    CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart(), m_frameIndex, m_rtvDescriptorSize);
+    CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart(), m_frameIndex, m_descSize[D3D12_DESCRIPTOR_HEAP_TYPE_RTV]);
     CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHandle(m_dsvHeap->GetCPUDescriptorHandleForHeapStart());
 
     m_commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
@@ -837,15 +898,15 @@ void D12Renderer::UpdateMaterial(Material* mat)
 
     m_commandList->SetDescriptorHeaps(1, ppHeaps);
     //  b2
-    CD3DX12_GPU_DESCRIPTOR_HANDLE matCbvHandle(m_matCbvHeap->GetGPUDescriptorHandleForHeapStart(), mat->GetMatId(), m_cbvUavSrvDescSize);
+    CD3DX12_GPU_DESCRIPTOR_HANDLE matCbvHandle(m_matCbvHeap->GetGPUDescriptorHandleForHeapStart(), mat->GetMatId(), m_descSize[D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV]);
     m_commandList->SetGraphicsRootDescriptorTable(RootParameterIndex::MatCbvParameter, matCbvHandle);
     
     m_commandList->SetDescriptorHeaps(1, ppHeaps + 1);
     // t0 t1
-    CD3DX12_GPU_DESCRIPTOR_HANDLE srvT0Handle(m_srvHeap->GetGPUDescriptorHandleForHeapStart(), m_diffuseTex->GetTextureData()->GetTexId() + ReverseSRVCount, m_cbvUavSrvDescSize);
+    CD3DX12_GPU_DESCRIPTOR_HANDLE srvT0Handle(m_srvHeap->GetGPUDescriptorHandleForHeapStart(), m_diffuseTex->GetTextureData()->GetTexId() + ReverseSRVCount, m_descSize[D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV]);
     m_commandList->SetGraphicsRootDescriptorTable(RootParameterIndex::SrvParameter0, srvT0Handle);
 
-    CD3DX12_GPU_DESCRIPTOR_HANDLE srvT1Handle(m_srvHeap->GetGPUDescriptorHandleForHeapStart(), m_normalTex->GetTextureData()->GetTexId() + ReverseSRVCount, m_cbvUavSrvDescSize);
+    CD3DX12_GPU_DESCRIPTOR_HANDLE srvT1Handle(m_srvHeap->GetGPUDescriptorHandleForHeapStart(), m_normalTex->GetTextureData()->GetTexId() + ReverseSRVCount, m_descSize[D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV]);
     m_commandList->SetGraphicsRootDescriptorTable(RootParameterIndex::SrvParameter1, srvT1Handle);
 }
 
@@ -952,7 +1013,7 @@ void D12Renderer::CreateTexture(void* imageData, int width, int height, DXGI_FOR
     D3D12_RESOURCE_BARRIER resBarrier = CD3DX12_RESOURCE_BARRIER::Transition(texture.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
     m_commandList->ResourceBarrier(1, &resBarrier);
 
-    CD3DX12_CPU_DESCRIPTOR_HANDLE hSrvHeap(m_srvHeap->GetCPUDescriptorHandleForHeapStart(), m_texCount + ReverseSRVCount, m_cbvUavSrvDescSize);
+    CD3DX12_CPU_DESCRIPTOR_HANDLE hSrvHeap(m_srvHeap->GetCPUDescriptorHandleForHeapStart(), m_texCount + ReverseSRVCount, m_descSize[D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV]);
     D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
     srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
     srvDesc.Format = textureDesc.Format;
@@ -1186,18 +1247,39 @@ D3D12_RESOURCE_DESC D12Renderer::DescribeGPUBuffer(UINT bufSize)
     return Desc;
 }
 
+D3D12_RESOURCE_DESC D12Renderer::DescribeTex2D(uint32_t Width, uint32_t Height, uint32_t DepthOrArraySize, uint32_t NumMips, DXGI_FORMAT Format)
+{
+    D3D12_RESOURCE_DESC Desc = {};
+    Desc.Alignment = 0;
+    Desc.DepthOrArraySize = (UINT16)DepthOrArraySize;
+    Desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+    Desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS | D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+    Desc.Format = GetBaseFormat(Format);
+    Desc.Height = (UINT)Height;
+    Desc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+    Desc.MipLevels = (UINT16)NumMips;
+    Desc.SampleDesc.Count = 1;
+    Desc.SampleDesc.Quality = 0;
+    Desc.Width = (UINT64)Width;
+    return Desc;
+}
+
+void D12Renderer::CreateDescriptorHeap(int count, D3D12_DESCRIPTOR_HEAP_TYPE type, D3D12_DESCRIPTOR_HEAP_FLAGS flag, ComPtr<ID3D12DescriptorHeap>& heap)
+{
+    // UAV u1 u2
+    D3D12_DESCRIPTOR_HEAP_DESC heapDesc = {};
+    heapDesc.NumDescriptors = count;
+    heapDesc.Type = type;
+    heapDesc.Flags = flag;
+    ThrowIfFailed(m_device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&heap)));
+}
+
 void D12Renderer::CreateUAVBuffer(void** data, uint32_t single, uint32_t length, ComPtr<ID3D12Resource>& uavbuf, CD3DX12_CPU_DESCRIPTOR_HANDLE& heapHandle)
 {
     /// pure gpu buffer
     const UINT uavBufferSize = single * length;
 
-    D3D12_HEAP_PROPERTIES heapProperty;
-    heapProperty.Type = D3D12_HEAP_TYPE_DEFAULT;
-    heapProperty.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
-    heapProperty.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
-    heapProperty.CreationNodeMask = 1;
-    heapProperty.VisibleNodeMask = 1;
-
+    CD3DX12_HEAP_PROPERTIES heapProperty(D3D12_HEAP_TYPE_DEFAULT);
     D3D12_RESOURCE_DESC resDesc = DescribeGPUBuffer(uavBufferSize);
 
     ThrowIfFailed(m_device->CreateCommittedResource(
@@ -1219,6 +1301,46 @@ void D12Renderer::CreateUAVBuffer(void** data, uint32_t single, uint32_t length,
     m_device->CreateUnorderedAccessView(uavbuf.Get(), nullptr, &uavDesc, heapHandle);
 
     uavbuf->SetName(L"uav_buf");
+}
+
+void D12Renderer::CreateSrvUavTexArray(int width, int height, DXGI_FORMAT format, ComPtr<ID3D12Resource>& srvuavBuf, CD3DX12_CPU_DESCRIPTOR_HANDLE& uavHeapHandle, CD3DX12_CPU_DESCRIPTOR_HANDLE& srvHeapHandle)
+{
+    CD3DX12_HEAP_PROPERTIES heapProperty(D3D12_HEAP_TYPE_DEFAULT);
+    D3D12_RESOURCE_DESC resDesc = DescribeTex2D(width, height, 1, 1, format);
+
+    D3D12_CLEAR_VALUE ClearValue = {};
+    ClearValue.Format = format;
+    ClearValue.Color[0] = 0;
+    ClearValue.Color[1] = 0;
+    ClearValue.Color[2] = 0;
+    ClearValue.Color[3] = 0;
+
+    ThrowIfFailed(m_device->CreateCommittedResource(
+        &heapProperty,
+        D3D12_HEAP_FLAG_NONE,
+        &resDesc,
+        D3D12_RESOURCE_STATE_COMMON,
+        &ClearValue,
+        IID_PPV_ARGS(&srvuavBuf)));
+
+    D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
+    D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+
+    uavDesc.Format = GetUAVFormat(format);
+    uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
+    uavDesc.Texture2D.MipSlice = 0;
+
+    srvDesc.Format = format;
+    srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+    srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+    srvDesc.Texture2D.MipLevels = 1;
+    srvDesc.Texture2D.MostDetailedMip = 0;
+
+    // srv
+    m_device->CreateShaderResourceView(srvuavBuf.Get(), &srvDesc, srvHeapHandle);
+
+    // uav
+    m_device->CreateUnorderedAccessView(srvuavBuf.Get(), nullptr, &uavDesc, uavHeapHandle);
 }
 
 void D12Renderer::CreateDefaultBuffer(ComPtr<ID3D12Device>& device, ComPtr<ID3D12GraphicsCommandList>& cmdList, const void* initData, UINT64 byteSize, Microsoft::WRL::ComPtr<ID3D12Resource>& buffer, Microsoft::WRL::ComPtr<ID3D12Resource>& uploadBuffer)
@@ -1264,4 +1386,28 @@ void D12Renderer::CreateDefaultBuffer(ComPtr<ID3D12Device>& device, ComPtr<ID3D1
         0, 0, 1, &subResourceData);
     resBarrier = CD3DX12_RESOURCE_BARRIER::Transition(buffer.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_GENERIC_READ);
     cmdList->ResourceBarrier(1, &resBarrier);
+}
+
+void D12Renderer::SetRootSignature(ComPtr<ID3D12RootSignature>& rootSignature)
+{
+    m_commandList->SetComputeRootSignature(rootSignature.Get());
+}
+
+void D12Renderer::SetPipelineState(ComPtr<ID3D12PipelineState>& pipelineState)
+{
+    m_commandList->SetPipelineState(pipelineState.Get());
+}
+
+void D12Renderer::TransitionResource(ComPtr<ID3D12Resource>& resource, D3D12_RESOURCE_STATES oldState, D3D12_RESOURCE_STATES newState)
+{
+    if (newState != D3D12_RESOURCE_STATE_UNORDERED_ACCESS)
+    {
+        D3D12_RESOURCE_BARRIER resBarrier = CD3DX12_RESOURCE_BARRIER::Transition(resource.Get(), oldState, newState);
+        m_commandList->ResourceBarrier(1, &resBarrier);
+    }
+    else
+    {
+        D3D12_RESOURCE_BARRIER resBarrier = CD3DX12_RESOURCE_BARRIER::UAV(resource.Get());
+        m_commandList->ResourceBarrier(1, &resBarrier);
+    }
 }

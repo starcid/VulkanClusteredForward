@@ -60,6 +60,8 @@ public:
 	virtual void AddLight(PointLight* light);
 	virtual void ClearLight();
 
+	virtual int GetFrameBufferCount() { return frameCount; }
+
 	virtual void OnSceneExit();
 
 	void CreateRootSignature(D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags, CD3DX12_ROOT_PARAMETER1* rootParameters, int count, ComPtr<ID3D12RootSignature>& rootSignature);
@@ -69,14 +71,21 @@ public:
 
 	void CreateConstBuffer(void** data, uint32_t size, ComPtr<ID3D12Resource>& constbuf, CD3DX12_CPU_DESCRIPTOR_HANDLE& heapHandle);
 	void CreateUAVBuffer(void** data, uint32_t single, uint32_t length, ComPtr<ID3D12Resource>& uavbuf, CD3DX12_CPU_DESCRIPTOR_HANDLE& heapHandle);
+	void CreateSrvUavTexArray(int width, int height, DXGI_FORMAT format, ComPtr<ID3D12Resource>& uavBuf, CD3DX12_CPU_DESCRIPTOR_HANDLE& uavHeapHandle, CD3DX12_CPU_DESCRIPTOR_HANDLE& srvHeapHandle);
 
 	void CreateTexture(void* imageData, int width, int height, DXGI_FORMAT format, ComPtr<ID3D12Resource>& texture, ComPtr<ID3D12Resource>& textureUploadHeap, int& texId);
 
 	void CreateGraphicsPipeLineState(void* vs, int vsSize, void* ps, int psSize, bool depthEnable, bool stencilEnable, D3D12_INPUT_LAYOUT_DESC& layoutDesc, ComPtr<ID3D12RootSignature>& rootSignature, ComPtr<ID3D12PipelineState>& pipelineState);
 	void CreateComputePipeLineState(void* cs, int csSize, ComPtr<ID3D12RootSignature>& rootSignature, ComPtr<ID3D12PipelineState>& pipelineState);
 
+	void CreateDescriptorHeap(int count, D3D12_DESCRIPTOR_HEAP_TYPE type, D3D12_DESCRIPTOR_HEAP_FLAGS flag, ComPtr<ID3D12DescriptorHeap>& heap);
+
 	inline ComPtr<ID3D12DescriptorHeap>& GetMatCbvHeap() { return m_matCbvHeap; }
-	inline int GetCbvUavSrvDescSize() { return m_cbvUavSrvDescSize; }
+	int GetDescSize(D3D12_DESCRIPTOR_HEAP_TYPE type);
+
+	void SetRootSignature(ComPtr<ID3D12RootSignature>& rootSignature);
+	void SetPipelineState(ComPtr<ID3D12PipelineState>& pipelineState);
+	void TransitionResource(ComPtr<ID3D12Resource>& resource, D3D12_RESOURCE_STATES oldState, D3D12_RESOURCE_STATES newState);
 
 private:
 	struct VertexBufferCreateInfo
@@ -140,8 +149,11 @@ private:
 	DXGI_FORMAT GetDSVFormat(DXGI_FORMAT defaultFormat);
 	DXGI_FORMAT GetDepthFormat(DXGI_FORMAT defaultFormat);
 	DXGI_FORMAT GetStencilFormat(DXGI_FORMAT defaultFormat);
+	DXGI_FORMAT GetUAVFormat(DXGI_FORMAT defaultFormat);
+	DXGI_FORMAT GetBaseFormat(DXGI_FORMAT defaultFormat);
 
 	D3D12_RESOURCE_DESC DescribeGPUBuffer(UINT bufSize);
+	D3D12_RESOURCE_DESC DescribeTex2D(uint32_t Width, uint32_t Height, uint32_t DepthOrArraySize, uint32_t NumMips, DXGI_FORMAT Format);
 
 	int CalcConstantBufferByteSize(int byteSize);
 
@@ -189,10 +201,7 @@ private:
 	Texture* m_diffuseTex;
 	Texture* m_normalTex;
 
-	int m_rtvDescriptorSize;
-	int m_samplerDescSize;
-	int m_cbvUavSrvDescSize;
-	int m_dsvDescSize;
+	int m_descSize[D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES];
 
 	int m_frameIndex;
 	int m_lastFrameIndex;

@@ -14,6 +14,9 @@ public:
 private:
 	ComPtr<ID3D12RootSignature> m_rootSignature;
 	ComPtr<ID3D12PipelineState> m_pipelineState;
+
+	ComPtr<ID3D12DescriptorHeap> m_srvUavHeap;
+	ComPtr<ID3D12Resource> m_linearDepth;
 };
 
 #endif // !__LINEARIZE_DEPTH_H__
