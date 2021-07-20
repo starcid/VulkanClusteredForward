@@ -125,8 +125,9 @@ class PointLight;
 class Renderer
 {
 public:
-	const int MAX_MATERIAL_NUM = 50;
-	const int MAX_MODEL_NUM = 1000;
+	static const int MAX_MATERIAL_NUM = 50;
+	static const int MAX_MODEL_NUM = 1000;
+	static const int MAX_FRAME_COUNT = 3;
 
 	enum Type
 	{

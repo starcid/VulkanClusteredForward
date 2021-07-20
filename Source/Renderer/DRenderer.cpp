@@ -11,6 +11,8 @@
 #include "GeoDataDX12.h"
 #include "TexDataDX12.h"
 
+#include "LinearizeDepth.h"
+
 inline std::string HrToString(HRESULT hr)
 {
     char s_str[64] = {};
@@ -98,7 +100,7 @@ D12Renderer::D12Renderer(GLFWwindow* win)
     UINT dxgiFactoryFlags = 0;
     m_texCount = 0;
     m_lastFrameIndex = -1;
-    m_bTaa = false;
+    m_bTaa = true;
 
 #if defined(_DEBUG)
     // Enable the debug layer (requires the Graphics Tools "optional feature").
@@ -402,6 +404,11 @@ D12Renderer::D12Renderer(GLFWwindow* win)
         m_device->CreateShaderResourceView(m_depthStencil.Get(), &SRVDesc, srvHandle);
     }
 
+    // init effetcs
+    {
+        m_effects.push_back(new LinearizeDepth(this));  // linearlize
+    }
+
     // Create synchronization objects and wait until assets have been uploaded to the GPU.
     {
         ThrowIfFailed(m_device->CreateFence(m_fenceValues[m_frameIndex], D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_fence)));
@@ -426,6 +433,12 @@ D12Renderer::~D12Renderer()
     WaitIdle();
 
     CloseHandle(m_fenceEvent);
+
+    for (int i = 0; i < m_effects.size(); i++)
+    {
+        delete m_effects[i];
+    }
+    m_effects.clear();
 }
 
 D3D12_GPU_DESCRIPTOR_HANDLE D12Renderer::GetDepthStencilGpuHandle()
@@ -442,7 +455,13 @@ int D12Renderer::GetDescSize(D3D12_DESCRIPTOR_HEAP_TYPE type)
 void D12Renderer::PostProcess()
 {
     /// taa
-    
+    if (m_bTaa)
+    {
+        for (int i = 0; i < m_effects.size(); i++)
+        {
+            m_effects[i]->Process();
+        }
+    }
 }
 
 DXGI_FORMAT D12Renderer::GetBaseFormat(DXGI_FORMAT defaultFormat)
@@ -671,7 +690,7 @@ void D12Renderer::RenderBegin()
     TransitionResource(m_renderTargets[m_frameIndex], D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
     // depth buffer for write
-    if (m_bTaa)
+    if (m_bTaa && m_lastFrameIndex != -1)
     {
         TransitionResource(m_depthStencil, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE);
     }
@@ -1416,6 +1435,11 @@ void D12Renderer::TransitionResource(ComPtr<ID3D12Resource>& resource, D3D12_RES
         D3D12_RESOURCE_BARRIER resBarrier = CD3DX12_RESOURCE_BARRIER::UAV(resource.Get());
         m_commandList->ResourceBarrier(1, &resBarrier);
     }
+}
+
+void D12Renderer::SetDescriptorHeaps(UINT NumDescriptorHeaps, ID3D12DescriptorHeap* const* ppDescriptorHeaps)
+{
+    m_commandList->SetDescriptorHeaps(NumDescriptorHeaps, ppDescriptorHeaps);
 }
 
 void D12Renderer::SetComputeConstants(UINT RootIndex, DWParam X)

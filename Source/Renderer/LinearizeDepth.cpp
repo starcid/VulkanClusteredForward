@@ -1,5 +1,6 @@
 #include "Common/Utils.h"
 #include "Camera.h"
+#include "DRenderer.h"
 #include "LinearizeDepth.h"
 
 LinearizeDepth::LinearizeDepth(Renderer* pRenderer)
@@ -26,7 +27,7 @@ LinearizeDepth::LinearizeDepth(Renderer* pRenderer)
     D12Renderer* dRenderer = (D12Renderer*)pRenderer;
     dRenderer->CreateRootSignature(rootSignatureFlags, rootParameters, _countof(rootParameters), m_rootSignature);
 
-    std::vector<char> computeShader = Utils::readFile("Data/shader/CameraVelocityCS.cso");
+    std::vector<char> computeShader = Utils::readFile("Data/shader/LinearizeDepthCS.cso");
     dRenderer->CreateComputePipeLineState(computeShader.data(), computeShader.size(), m_rootSignature, m_pipelineState);
 
     /// uav,srv for linear buffer
@@ -37,7 +38,7 @@ LinearizeDepth::LinearizeDepth(Renderer* pRenderer)
     CD3DX12_CPU_DESCRIPTOR_HANDLE hSrvHandle(m_srvUavHeap->GetCPUDescriptorHandleForHeapStart(), 1, dRenderer->GetDescSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
     for (int i = 0; i < dRenderer->GetFrameBufferCount(); i++)
     {
-        dRenderer->CreateSrvUavTexArray(pRenderer->GetWinWidth(), pRenderer->GetWinHeight(), DXGI_FORMAT_R16_UNORM, m_linearDepth, hUavHandle, hSrvHandle);
+        dRenderer->CreateSrvUavTexArray(pRenderer->GetWinWidth(), pRenderer->GetWinHeight(), DXGI_FORMAT_R16_UNORM, m_linearDepth[i], hUavHandle, hSrvHandle);
         hUavHandle.Offset(dRenderer->GetDescSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) * 2);
         hSrvHandle.Offset(dRenderer->GetDescSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) * 2);
     }
@@ -60,9 +61,13 @@ void LinearizeDepth::Process()
     dRenderer->SetPipelineState(m_pipelineState);
 
     dRenderer->TransitionResource(dRenderer->GetDepthStencil(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-    dRenderer->TransitionResource(m_linearDepth, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+    dRenderer->TransitionResource(m_linearDepth[dRenderer->GetFrameIndex()], D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
+    ID3D12DescriptorHeap* ppHeaps[] = { m_srvUavHeap.Get(), dRenderer->GetSrvHeap().Get() };
     dRenderer->SetComputeConstants(0, zMagic);
+    dRenderer->SetDescriptorHeaps(1, ppHeaps);
     dRenderer->SetComputeRootDescriptorTable(1, m_srvUavHeap->GetGPUDescriptorHandleForHeapStart(), dRenderer->GetFrameIndex() * 2 + 0, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+    dRenderer->SetDescriptorHeaps(1, ppHeaps + 1);
     dRenderer->SetComputeRootDescriptorTable(2, dRenderer->GetDepthStencilGpuHandle());
     dRenderer->Dispatch2D(dRenderer->GetWinWidth(), dRenderer->GetWinHeight(), 16, 16);
 }

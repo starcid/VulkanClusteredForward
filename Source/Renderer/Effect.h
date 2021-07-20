@@ -1,7 +1,7 @@
 #ifndef __EFFECT_H__
 #define	__EFFECT_H__
 
-#include "DRenderer.h"
+#include "Renderer.h"
 
 /*
 	PostEffects (now only for dx renderer)

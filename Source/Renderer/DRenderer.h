@@ -39,6 +39,7 @@ class GeoData;
 class Texture;
 class Material;
 class PointLight;
+class Effect;
 class D12Renderer : public Renderer
 {
 	static const UINT frameCount = 3;
@@ -88,6 +89,7 @@ public:
 	void SetPipelineState(ComPtr<ID3D12PipelineState>& pipelineState);
 	void TransitionResource(ComPtr<ID3D12Resource>& resource, D3D12_RESOURCE_STATES oldState, D3D12_RESOURCE_STATES newState);
 	
+	void SetDescriptorHeaps(UINT NumDescriptorHeaps, ID3D12DescriptorHeap* const* ppDescriptorHeaps);
 	void SetComputeConstants(UINT RootIndex, DWParam X);
 	void SetComputeRootDescriptorTable(UINT RootIndex, D3D12_GPU_DESCRIPTOR_HANDLE handleStart, int offset, D3D12_DESCRIPTOR_HEAP_TYPE type);
 	void SetComputeRootDescriptorTable(UINT RootIndex, D3D12_GPU_DESCRIPTOR_HANDLE handle);
@@ -95,6 +97,7 @@ public:
 
 	ComPtr<ID3D12Resource>& GetDepthStencil() { return m_depthStencil; }
 	D3D12_GPU_DESCRIPTOR_HANDLE GetDepthStencilGpuHandle();
+	ComPtr<ID3D12DescriptorHeap>& GetSrvHeap() { return m_srvHeap; }
 
 private:
 	struct VertexBufferCreateInfo
@@ -221,6 +224,8 @@ private:
 	UINT64 m_fenceValues[frameCount];
 
 	bool m_bTaa;
+
+	std::vector<Effect*> m_effects;
 };
 
 #endif // !__D12_RENDERER_H__
