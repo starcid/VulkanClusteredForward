@@ -1,5 +1,5 @@
-#ifndef __LINEARIZE_DEPTH_H__
-#define	__LINEARIZE_DEPTH_H__
+#ifndef __CAMERA_VELOCITY_H__
+#define	__CAMERA_VELOCITY_H__
 
 #include <windows.h>
 #include <d3d12.h>
@@ -21,23 +21,20 @@ using Microsoft::WRL::ComPtr;
 
 #include "Effect.h"
 
-class LinearizeDepth : public Effect
+class CameraVelocity : public Effect
 {
 public:
-	LinearizeDepth(Renderer* pRenderer);
-	virtual ~LinearizeDepth();
+	CameraVelocity(Renderer* pRenderer);
+	virtual ~CameraVelocity();
 
 	virtual void Process();
-
-	ComPtr<ID3D12Resource>& GetLinearDepth();
-	D3D12_GPU_DESCRIPTOR_HANDLE GetLinearDepthGpuHandle();
 
 private:
 	ComPtr<ID3D12RootSignature> m_rootSignature;
 	ComPtr<ID3D12PipelineState> m_pipelineState;
 
 	ComPtr<ID3D12DescriptorHeap> m_srvUavHeap;
-	ComPtr<ID3D12Resource> m_linearDepth[Renderer::MAX_FRAME_COUNT];
+	ComPtr<ID3D12Resource> m_cameraVelocity[Renderer::MAX_FRAME_COUNT];
 };
 
-#endif // !__LINEARIZE_DEPTH_H__
+#endif // !__CAMERA_VELOCITY_H__

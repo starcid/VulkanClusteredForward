@@ -12,6 +12,7 @@
 #include "TexDataDX12.h"
 
 #include "LinearizeDepth.h"
+#include "CameraVelocity.h"
 
 inline std::string HrToString(HRESULT hr)
 {
@@ -407,6 +408,7 @@ D12Renderer::D12Renderer(GLFWwindow* win)
     // init effetcs
     {
         m_effects.push_back(new LinearizeDepth(this));  // linearlize
+        m_effects.push_back(new CameraVelocity(this));  // camera velocity
     }
 
     // Create synchronization objects and wait until assets have been uploaded to the GPU.
@@ -439,6 +441,18 @@ D12Renderer::~D12Renderer()
         delete m_effects[i];
     }
     m_effects.clear();
+}
+
+Effect* D12Renderer::GetEffect(const char* cType)
+{
+    for (int i = 0; i < m_effects.size(); i++)
+    {
+        if (m_effects[i]->GetType() == cType)
+        {
+            return m_effects[i];
+        }
+    }
+    return NULL;
 }
 
 D3D12_GPU_DESCRIPTOR_HANDLE D12Renderer::GetDepthStencilGpuHandle()

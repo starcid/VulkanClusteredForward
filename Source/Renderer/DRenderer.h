@@ -99,6 +99,8 @@ public:
 	D3D12_GPU_DESCRIPTOR_HANDLE GetDepthStencilGpuHandle();
 	ComPtr<ID3D12DescriptorHeap>& GetSrvHeap() { return m_srvHeap; }
 
+	Effect* GetEffect(const char* cType);
+
 private:
 	struct VertexBufferCreateInfo
 	{

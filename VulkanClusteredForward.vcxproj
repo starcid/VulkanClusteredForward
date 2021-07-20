@@ -199,6 +199,7 @@
     <ClCompile Include="Source\Common\Utils.cpp" />
     <ClCompile Include="Source\Main.cpp" />
     <ClCompile Include="Source\Renderer\Camera.cpp" />
+    <ClCompile Include="Source\Renderer\CameraVelocity.cpp" />
     <ClCompile Include="Source\Renderer\DRenderer.cpp" />
     <ClCompile Include="Source\Renderer\Effect.cpp" />
     <ClCompile Include="Source\Renderer\extensions_vk.cpp" />
@@ -230,6 +231,7 @@
     <ClInclude Include="Source\Ispc\cluste_culling_ispc_sse2.h" />
     <ClInclude Include="Source\Ispc\cluste_culling_ispc_sse4.h" />
     <ClInclude Include="Source\Renderer\Camera.h" />
+    <ClInclude Include="Source\Renderer\CameraVelocity.h" />
     <ClInclude Include="Source\Renderer\ClusteCulling.h" />
     <ClInclude Include="Source\Renderer\d3dx12.h" />
     <ClInclude Include="Source\Renderer\DRenderer.h" />

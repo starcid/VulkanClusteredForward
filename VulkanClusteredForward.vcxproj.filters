@@ -100,6 +100,9 @@
     <ClCompile Include="Source\Renderer\LinearizeDepth.cpp">
       <Filter>Source\Renderer</Filter>
     </ClCompile>
+    <ClCompile Include="Source\Renderer\CameraVelocity.cpp">
+      <Filter>Source\Renderer</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ThirdParty\tinyobjloader\tiny_obj_loader.h">
@@ -208,6 +211,9 @@
       <Filter>Source\Renderer</Filter>
     </ClInclude>
     <ClInclude Include="Source\Renderer\LinearizeDepth.h">
+      <Filter>Source\Renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Renderer\CameraVelocity.h">
       <Filter>Source\Renderer</Filter>
     </ClInclude>
   </ItemGroup>
