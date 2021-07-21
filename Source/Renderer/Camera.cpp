@@ -100,5 +100,7 @@ void Camera::UpdateViewProject()
 		clipMtx[1][1] = 1.0f;
 		clipMtx[0][0] = -1.0f;
 	}
+	prev_view_project_mtx = view_project_mtx;
 	view_project_mtx = clipMtx * (*projMtx) * (*viewMtx);
+	re_project_mtx = prev_view_project_mtx * glm::inverse(view_project_mtx);
 }

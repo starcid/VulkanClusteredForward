@@ -13,6 +13,6 @@
 
 #define MotionBlur_RootSig \
     "RootFlags(0), " \
-    "CBV(b1)," \
+    "DescriptorTable(CBV(b0, numDescriptors = 1))," \
     "DescriptorTable(UAV(u0, numDescriptors = 1))," \
     "DescriptorTable(SRV(t0, numDescriptors = 1))," 

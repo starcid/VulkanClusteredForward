@@ -31,6 +31,7 @@ public:
 
 	ComPtr<ID3D12Resource>& GetLinearDepth();
 	D3D12_GPU_DESCRIPTOR_HANDLE GetLinearDepthGpuHandle();
+	ComPtr<ID3D12DescriptorHeap>& GetSrvUavHeap() { return m_srvUavHeap; }
 
 private:
 	ComPtr<ID3D12RootSignature> m_rootSignature;

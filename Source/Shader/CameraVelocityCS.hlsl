@@ -23,7 +23,7 @@
 Texture2D<float> DepthBuffer : register(t0);
 RWTexture2D<packed_velocity_t> VelocityBuffer : register(u0);
 
-cbuffer CBuffer : register(b1)
+cbuffer CBuffer : register(b0)
 {
     matrix CurToPrevXForm;
 }

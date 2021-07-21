@@ -22,6 +22,7 @@ public:
 	glm::mat4x4* GetViewMatrix() { return &matrix; }
 	glm::mat4x4* GetProjectMatrix() { return &project_mat; }
 	glm::mat4x4* GetViewProjectMatrix() { return &view_project_mtx; }
+	glm::mat4x4* GetReProjectMatrix() { return &re_project_mtx; }
 
 	glm::vec3 GetLookAtPosition() { return look_at; }
 
@@ -52,6 +53,8 @@ private:
 	glm::mat4x4 project_mat;
 
 	glm::mat4x4 view_project_mtx;
+	glm::mat4x4 prev_view_project_mtx;
+	glm::mat4x4 re_project_mtx;
 
 	glm::vec3 look_at_dir;
 	float look_at_dist;

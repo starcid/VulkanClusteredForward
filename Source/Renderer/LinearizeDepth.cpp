@@ -39,6 +39,7 @@ LinearizeDepth::LinearizeDepth(Renderer* pRenderer)
     for (int i = 0; i < dRenderer->GetFrameBufferCount(); i++)
     {
         dRenderer->CreateSrvUavTexArray(pRenderer->GetWinWidth(), pRenderer->GetWinHeight(), DXGI_FORMAT_R16_UNORM, m_linearDepth[i], hUavHandle, hSrvHandle);
+        NAME_D3D12_OBJECT_INDEXED(m_linearDepth, i);
         hUavHandle.Offset(dRenderer->GetDescSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) * 2);
         hSrvHandle.Offset(dRenderer->GetDescSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) * 2);
     }

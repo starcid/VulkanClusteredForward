@@ -33,8 +33,12 @@ private:
 	ComPtr<ID3D12RootSignature> m_rootSignature;
 	ComPtr<ID3D12PipelineState> m_pipelineState;
 
-	ComPtr<ID3D12DescriptorHeap> m_srvUavHeap;
+	ComPtr<ID3D12DescriptorHeap> m_cbvSrvUavHeap;
 	ComPtr<ID3D12Resource> m_cameraVelocity[Renderer::MAX_FRAME_COUNT];
+	ComPtr<ID3D12Resource> m_reprojectMtxConstBuffer[Renderer::MAX_FRAME_COUNT];
+	void* m_reprojectMtxConstBufferBegin[Renderer::MAX_FRAME_COUNT];
+
+	bool isFirst;
 };
 
 #endif // !__CAMERA_VELOCITY_H__

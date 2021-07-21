@@ -14,55 +14,6 @@
 #include "LinearizeDepth.h"
 #include "CameraVelocity.h"
 
-inline std::string HrToString(HRESULT hr)
-{
-    char s_str[64] = {};
-    sprintf_s(s_str, "HRESULT of 0x%08X", static_cast<UINT>(hr));
-    return std::string(s_str);
-}
-
-class HrException : public std::runtime_error
-{
-public:
-    HrException(HRESULT hr) : std::runtime_error(HrToString(hr)), m_hr(hr) {}
-    HRESULT Error() const { return m_hr; }
-private:
-    const HRESULT m_hr;
-};
-
-inline void ThrowIfFailed(HRESULT hr)
-{
-    if (FAILED(hr))
-    {
-        throw HrException(hr);
-    }
-}
-
-#if defined(_DEBUG) || defined(DBG)
-inline void SetName(ID3D12Object* pObject, LPCWSTR name)
-{
-    pObject->SetName(name);
-}
-inline void SetNameIndexed(ID3D12Object* pObject, LPCWSTR name, UINT index)
-{
-    WCHAR fullName[50];
-    if (swprintf_s(fullName, L"%s[%u]", name, index) > 0)
-    {
-        pObject->SetName(fullName);
-    }
-}
-#else
-inline void SetName(ID3D12Object*, LPCWSTR)
-{
-}
-inline void SetNameIndexed(ID3D12Object*, LPCWSTR, UINT)
-{
-}
-#endif
-
-#define NAME_D3D12_OBJECT(x) SetName((x).Get(), L#x)
-#define NAME_D3D12_OBJECT_INDEXED(x, n) SetNameIndexed((x)[n].Get(), L#x, n)
-
 const D3D12_INPUT_ELEMENT_DESC StandardVertexDescription[] =
 {
     { "POSITION", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, offsetof(Vertex, pos),  D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
@@ -1439,12 +1390,12 @@ void D12Renderer::SetPipelineState(ComPtr<ID3D12PipelineState>& pipelineState)
 
 void D12Renderer::TransitionResource(ComPtr<ID3D12Resource>& resource, D3D12_RESOURCE_STATES oldState, D3D12_RESOURCE_STATES newState)
 {
-    if (newState != D3D12_RESOURCE_STATE_UNORDERED_ACCESS)
+    if (oldState != newState)
     {
         D3D12_RESOURCE_BARRIER resBarrier = CD3DX12_RESOURCE_BARRIER::Transition(resource.Get(), oldState, newState);
         m_commandList->ResourceBarrier(1, &resBarrier);
     }
-    else
+    else if (newState == D3D12_RESOURCE_STATE_UNORDERED_ACCESS)
     {
         D3D12_RESOURCE_BARRIER resBarrier = CD3DX12_RESOURCE_BARRIER::UAV(resource.Get());
         m_commandList->ResourceBarrier(1, &resBarrier);
